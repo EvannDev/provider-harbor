@@ -1,0 +1,13 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: provider-harbor
+  annotations:
+    meta.crossplane.io/maintainer: EvannDev
+    meta.crossplane.io/source: github.com/EvannDev/provider-harbor
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      A Crossplane provider for Harbor container registry.
+spec:
+  capabilities:
+    - safe-start

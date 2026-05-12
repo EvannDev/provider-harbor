@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crossplane-system
+---
+# The Secret holds Harbor credentials as a JSON object.
+# For a local admin account:
+#   {"username": "admin", "password": "Harbor12345"}
+# For a robot account:
+#   {"username": "robot$my-robot", "password": "<robot-token>"}
+#
+# To create it:
+#   kubectl create secret generic harbor-credentials \
+#     --namespace crossplane-system \
+#     --from-literal=credentials='{"username":"admin","password":"Harbor12345"}'
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harbor-credentials
+  namespace: crossplane-system
+type: Opaque
+stringData:
+  credentials: |
+    {"username": "admin", "password": "Harbor12345"}
+---
+# Namespaced ProviderConfig — use when managed resources live in a specific namespace.
+apiVersion: harbor.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: default
+  namespace: crossplane-system
+spec:
+  url: https://harbor.example.com
+  # insecureSkipTLSVerify: true  # uncomment for self-signed certs
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: harbor-credentials
+      key: credentials
+---
+# ClusterProviderConfig — cluster-scoped, usable from any namespace.
+apiVersion: harbor.crossplane.io/v1alpha1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+spec:
+  url: https://harbor.example.com
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: harbor-credentials
+      key: credentials
