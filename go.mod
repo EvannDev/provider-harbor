@@ -13,9 +13,9 @@ require (
 	github.com/crossplane/crossplane-runtime/v2 v2.0.0
 	github.com/google/go-cmp v0.7.0
 	google.golang.org/grpc v1.74.2
-	k8s.io/apiextensions-apiserver v0.33.0
-	k8s.io/apimachinery v0.33.3
-	k8s.io/client-go v0.33.3
+	k8s.io/apiextensions-apiserver v0.36.1
+	k8s.io/apimachinery v0.36.1
+	k8s.io/client-go v0.36.1
 	sigs.k8s.io/controller-runtime v0.21.0
 )
 
