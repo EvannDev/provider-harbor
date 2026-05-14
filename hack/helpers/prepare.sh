@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright 2025 The Crossplane Authors.
+# Copyright 2026 The Crossplane Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,11 +31,11 @@ git grep -l 'template' -- ${REPLACE_FILES} | xargs sed -i.bak "s/template/${Prov
 git grep -l 'Template' -- ${REPLACE_FILES} | xargs sed -i.bak "s/Template/${ProviderNameUpper}/g"
 # We need to be careful while replacing "template" keyword in go.mod as it could tamper
 # some imported packages under require section.
-sed -i.bak "s/provider-harbor/provider-${ProviderNameLower}/g" go.mod
+sed -i.bak "s/provider-template/provider-${ProviderNameLower}/g" go.mod
 
 # Clean up the .bak files created by sed
 git clean -fd
 
 git mv "apis/template.go" "apis/${ProviderNameLower}.go"
-git mv "internal/controller/register.go" "internal/controller/${ProviderNameLower}.go"
-git mv "cluster/images/provider-harbor" "cluster/images/provider-${ProviderNameLower}"
+git mv "internal/controller/template.go" "internal/controller/${ProviderNameLower}.go"
+git mv "cluster/images/provider-template" "cluster/images/provider-${ProviderNameLower}"

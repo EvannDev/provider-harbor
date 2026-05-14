@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The Crossplane Authors.
+Copyright 2026 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,13 +21,14 @@ import (
 	"fmt"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 
-	"k8s.io/apimachinery/pkg/types"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
@@ -36,84 +37,81 @@ import (
 
 	{{ .Env.APIVERSION | strings.ToLower }} "{{ .Env.PROJECT_REPO | strings.ToLower }}/apis/{{ .Env.GROUP | strings.ToLower }}/{{ .Env.APIVERSION | strings.ToLower }}"
 	apisv1alpha1 "{{ .Env.PROJECT_REPO | strings.ToLower }}/apis/v1alpha1"
+	"{{ .Env.PROJECT_REPO | strings.ToLower }}/internal/clients/common"
+	"{{ .Env.PROJECT_REPO | strings.ToLower }}/internal/clients/{{ .Env.GROUP | strings.ToLower }}"
 )
 
 const (
+	errNot{{ .Env.KIND }}   = "managed resource is not a {{ .Env.KIND }} custom resource"
 	errTrackPCUsage = "cannot track ProviderConfig usage"
 	errGetPC    = "cannot get ProviderConfig"
-	errGetCPC   = "cannot get ClusterProviderConfig"
-	errGetCreds = "cannot get credentials"
 
-	errNewClient = "cannot create new Service"
-)
-
-// A NoOpService does nothing.
-type NoOpService struct{}
-
-var (
-	newNoOpService = func(_ []byte) (interface{}, error) { return &NoOpService{}, nil }
+	errExternalNameNotSet = "external name is not set for {{ .Env.KIND }} resource %s"
 )
 
 // SetupGated adds a controller that reconciles {{ .Env.KIND }} managed resources with safe-start support.
 func SetupGated(mgr ctrl.Manager, o controller.Options) error {
 	o.Gate.Register(func() {
-		if err := Setup(mgr, o); err != nil {
+		err := Setup(mgr, o)
+		if err != nil {
 			panic(errors.Wrap(err, "cannot setup {{ .Env.KIND }} controller"))
 		}
 	}, v1alpha1.{{ .Env.KIND }}GroupVersionKind)
+
 	return nil
 }
 
-func Setup(mgr ctrl.Manager, o controller.Options) error {
+func Setup(mgr ctrl.Manager, options controller.Options) error {
 	name := managed.ControllerName(v1alpha1.{{ .Env.KIND }}GroupKind)
 
 	opts := []managed.ReconcilerOption{
-		managed.WithTypedExternalConnector[*{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}](&connector{
+		managed.WithExternalConnector(&connector{
 			kube:         mgr.GetClient(),
 			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
-			newServiceFn: newNoOpService}),
-		managed.WithLogger(o.Logger.WithValues("controller", name)),
-		managed.WithPollInterval(o.PollInterval),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+			newServiceFn: {{ .Env.GROUP | strings.ToLower }}.New{{ .Env.KIND }}sClient,
+		}),
+		managed.WithLogger(options.Logger.WithValues("controller", name)),
+		managed.WithPollInterval(options.PollInterval),
+		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name) /*nolint:staticcheck // GetEventRecorderFor is marked as deprecated but is not yet replaced with an alternative in controller-runtime, and the APIRecorder is still required for recording events.*/)),
 	}
 
-	if o.Features.Enabled(feature.EnableBetaManagementPolicies) {
+	if options.Features.Enabled(feature.EnableBetaManagementPolicies) {
 		opts = append(opts, managed.WithManagementPolicies())
 	}
 
-	if o.Features.Enabled(feature.EnableAlphaChangeLogs) {
-		opts = append(opts, managed.WithChangeLogger(o.ChangeLogOptions.ChangeLogger))
+	if options.Features.Enabled(feature.EnableAlphaChangeLogs) {
+		opts = append(opts, managed.WithChangeLogger(options.ChangeLogOptions.ChangeLogger))
 	}
 
-	if o.MetricOptions != nil {
-		opts = append(opts, managed.WithMetricRecorder(o.MetricOptions.MRMetrics))
+	if options.MetricOptions != nil {
+		opts = append(opts, managed.WithMetricRecorder(options.MetricOptions.MRMetrics))
 	}
 
-	if o.MetricOptions != nil && o.MetricOptions.MRStateMetrics != nil {
+	if options.MetricOptions != nil && options.MetricOptions.MRStateMetrics != nil {
 		stateMetricsRecorder := statemetrics.NewMRStateRecorder(
-			mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics, &v1alpha1.{{ .Env.KIND }}List{}, o.MetricOptions.PollStateMetricInterval,
+			mgr.GetClient(), options.Logger, options.MetricOptions.MRStateMetrics, &v1alpha1.{{ .Env.KIND }}List{}, options.MetricOptions.PollStateMetricInterval,
 		)
-		if err := mgr.Add(stateMetricsRecorder); err != nil {
+		err := mgr.Add(stateMetricsRecorder)
+		if err != nil {
 			return errors.Wrap(err, "cannot register MR state metrics recorder for kind v1alpha1.{{ .Env.KIND }}List")
 		}
 	}
 
-	r := managed.NewReconciler(mgr, resource.ManagedKind(v1alpha1.{{ .Env.KIND }}GroupVersionKind), opts...)
+	reconciler := managed.NewReconciler(mgr, resource.ManagedKind(v1alpha1.{{ .Env.KIND }}GroupVersionKind), opts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		WithOptions(o.ForControllerRuntime()).
+		WithOptions(options.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
 		For(&v1alpha1.{{ .Env.KIND }}{}).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, reconciler, options.GlobalRateLimiter))
 }
 
-// A connector is expected to produce an ExternalClient when its Connect method
-// is called.
+// A connector is expected to produce an ExternalClient when its Connect method is called.
 type connector struct {
 	kube         client.Client
 	usage        *resource.ProviderConfigUsageTracker
-	newServiceFn func(creds []byte) (interface{}, error)
+	newServiceFn func(config common.Config) {{ .Env.GROUP | strings.ToLower }}.{{ .Env.KIND }}sClient
 }
 
 // Connect typically produces an ExternalClient by:
@@ -121,55 +119,66 @@ type connector struct {
 // 2. Getting the managed resource's ProviderConfig.
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
-func (c *connector) Connect(ctx context.Context, cr *{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}) (managed.TypedExternalClient[*{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}], error) {
-	if err := c.usage.Track(ctx, cr); err != nil {
+func (c *connector) Connect(ctx context.Context, managedResource resource.Managed) (managed.ExternalClient, error) {
+	{{ .Env.KIND  | strings.ToLower }}, isValid := managedResource.(*{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }})
+	if !isValid {
+		return nil, errors.New(errNot{{ .Env.KIND }})
+	}
+
+	err := c.usage.Track(ctx, {{ .Env.KIND  | strings.ToLower }})
+	if err != nil {
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
-	var cd apisv1alpha1.ProviderCredentials
-
-	ref := cr.GetProviderConfigReference()
-
-	switch ref.Kind {
-	case "ProviderConfig":
-		pc := &apisv1alpha1.ProviderConfig{}
-		if err := c.kube.Get(ctx, types.NamespacedName{Name: ref.Name, Namespace: cr.GetNamespace()}, pc); err != nil {
-			return nil, errors.Wrap(err, errGetPC)
-		}
-		cd = pc.Spec.Credentials
-	case "ClusterProviderConfig":
-		cpc := &apisv1alpha1.ClusterProviderConfig{}
-		if err := c.kube.Get(ctx, types.NamespacedName{Name: ref.Name}, cpc); err != nil {
-			return nil, errors.Wrap(err, errGetCPC)
-		}
-		cd = cpc.Spec.Credentials
-	default:
-		return nil, errors.Errorf("unsupported provider config kind: %s", ref.Kind)
-	}
-	data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
-	if err != nil {
-		return nil, errors.Wrap(err, errGetCreds)
+	// Switch to ModernManaged resource to get ProviderConfigRef
+	modernManaged, isValid := managedResource.(resource.ModernManaged)
+	if !isValid {
+		return nil, errors.New("managed resource is not a ModernManaged")
 	}
 
-	svc, err := c.newServiceFn(data)
-	if err != nil {
-		return nil, errors.Wrap(err, errNewClient)
+	config, err := common.GetConfig(ctx, c.kube, modernManaged)
+	if err != nil || config == nil {
+		return nil, errors.Wrap(err, errGetPC)
 	}
 
-	return &external{service: svc}, nil
+	svc := c.newServiceFn(*config)
+
+	return &external{client: svc}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	// A 'client' used to connect to the external resource API. In practice this
-	// would be something like an AWS SDK client.
-	service interface{}
+	// client is used to interact with Harbor {{ .Env.KIND }} API
+	client {{ .Env.GROUP | strings.ToLower }}.{{ .Env.KIND }}sClient
 }
 
-func (c *external) Observe(ctx context.Context, cr *{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}) (managed.ExternalObservation, error) {
-	// These fmt statements should be removed in the real implementation.
-	fmt.Printf("Observing: %+v", cr)
+// Observe observes the {{ .Env.KIND }} corresponding external resource using the Harbor API, and returns an ExternalObservation.
+// It is used to determine if the resource exists, is up to date, and late initialize the spec if needed.
+func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+	cr, ok := mg.(*{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }})
+	if !ok {
+		return managed.ExternalObservation{}, errors.New(errNot{{ .Env.KIND }})
+	}
+
+	// Use external name as the identifier to get the resource
+	externalName := meta.GetExternalName(cr)
+	if externalName == "" {
+		return managed.ExternalObservation{
+		ResourceExists: false,
+		}, nil
+	}
+
+	var observation {{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}Observation
+
+	// TODO: Use c.client to get the {{ .Env.KIND }} resource from Harbor API and populate the `cr.Status.AtProvider` variable with the API response.
+	cr.Status.AtProvider = observation
+
+	// Late initialize the {{ .Env.KIND }} spec with the API response to determine if there are any fields that can be defaulted.
+	former := cr.Spec.ForProvider.DeepCopy()
+	{{ .Env.GROUP | strings.ToLower }}.LateInitialize{{ .Env.KIND }}(&cr.Spec.ForProvider, &cr.Status.AtProvider)
+
+	cr.SetConditions(xpv1.Available())
 
 	return managed.ExternalObservation{
 		// Return false when the external resource does not exist. This lets
@@ -180,7 +189,10 @@ func (c *external) Observe(ctx context.Context, cr *{{ .Env.APIVERSION | strings
 		// Return false when the external resource exists, but it not up to date
 		// with the desired managed resource state. This lets the managed
 		// resource reconciler know that it needs to call Update.
-		ResourceUpToDate: true,
+		ResourceUpToDate: {{ .Env.GROUP | strings.ToLower }}.Is{{ .Env.KIND }}UpToDate(&cr.Spec.ForProvider, &cr.Status.AtProvider),
+
+		// Return true when the external resource exists and the observed state has been used to late initialize the spec. This lets the managed resource reconciler know that it needs to call Update to persist the late-initialized fields in the spec.
+		ResourceLateInitialized: !{{ .Env.GROUP | strings.ToLower }}.Is{{ .Env.KIND }}LateInitialized(former, &cr.Spec.ForProvider),
 
 		// Return any details that may be required to connect to the external
 		// resource. These will be stored as the connection secret.
@@ -188,8 +200,19 @@ func (c *external) Observe(ctx context.Context, cr *{{ .Env.APIVERSION | strings
 	}, nil
 }
 
-func (c *external) Create(ctx context.Context, cr *{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}) (managed.ExternalCreation, error) {
-	fmt.Printf("Creating: %+v", cr)
+// Create creates the {{ .Env.KIND }} external resource using the Harbor API, based on the desired state of the managed resource. It returns an ExternalCreation which may include connection details to be stored in a secret.
+// It also sets the external name of the managed resource to the identifier of the created external resource if it is not already set.
+func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
+	cr, ok := mg.(*{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }})
+	if !ok {
+		return managed.ExternalCreation{}, errors.New(errNot{{ .Env.KIND }})
+	}
+
+	// TODO: Use c.client to create the {{ .Env.KIND }} resource in Harbor API based on the desired state in `cr.Spec.ForProvider`.
+	var externalName string
+
+	// Set the external name to the Name of the created {{ .Env.KIND }} resource if it is not already set. This assumes that the Name of the {{ .Env.KIND }} resource in Harbor API is used as the identifier for the resource, and that it is returned in the API response after creation.
+	meta.SetExternalName(cr, externalName)
 
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the
@@ -198,8 +221,19 @@ func (c *external) Create(ctx context.Context, cr *{{ .Env.APIVERSION | strings.
 	}, nil
 }
 
-func (c *external) Update(ctx context.Context, cr *{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}) (managed.ExternalUpdate, error) {
-	fmt.Printf("Updating: %+v", cr)
+// Update updates the {{ .Env.KIND }} corresponding external resource to reflect the desired state of the managed resource. It returns an ExternalUpdate which may include connection details to be stored in a secret.
+func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
+	cr, ok := mg.(*{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }})
+	if !ok {
+		return managed.ExternalUpdate{}, errors.New(errNot{{ .Env.KIND }})
+	}
+
+	externalName := meta.GetExternalName(cr)
+	if externalName == "" {
+		return managed.ExternalUpdate{}, fmt.Errorf(errExternalNameNotSet, cr.Name)
+	}
+
+	// TODO: Use c.client to update the {{ .Env.KIND }} resource in Harbor API to reflect the desired state in `cr.Spec.ForProvider`.
 
 	return managed.ExternalUpdate{
 		// Optionally return any details that may be required to connect to the
@@ -208,8 +242,22 @@ func (c *external) Update(ctx context.Context, cr *{{ .Env.APIVERSION | strings.
 	}, nil
 }
 
-func (c *external) Delete(ctx context.Context, cr *{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}) (managed.ExternalDelete, error) {
-	fmt.Printf("Deleting: %+v", cr)
+// Delete deletes the {{ .Env.KIND }} corresponding external resource using the Harbor API. It returns an ExternalDelete which may include connection details to be stored in a secret.
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
+	cr, ok := mg.(*{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }})
+	if !ok {
+		return managed.ExternalDelete{}, errors.New(errNot{{ .Env.KIND }})
+	}
+
+	cr.Status.SetConditions(xpv1.Deleting())
+
+	// Use external name as the identifier to delete the resource
+	externalName := meta.GetExternalName(cr)
+	if externalName == "" {
+		return managed.ExternalDelete{}, nil
+	}
+
+	// TODO: Use c.client to delete the {{ .Env.KIND }} resource from Harbor API.
 
 	return managed.ExternalDelete{}, nil
 }
