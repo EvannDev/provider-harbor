@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2026 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,9 +33,11 @@ func SetupGated(mgr ctrl.Manager, o controller.Options) error {
 		project.SetupGated,
 		robotaccount.SetupGated,
 	} {
-		if err := setup(mgr, o); err != nil {
+		err := setup(mgr, o)
+		if err != nil {
 			return err
 		}
 	}
+
 	return nil
 }

@@ -1,3 +1,17 @@
+// Copyright 2026 The Crossplane Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package harbor
 
 import (
@@ -26,6 +40,7 @@ func NewClient(ctx context.Context, kube client.Client, ref *xpv1.ProviderConfig
 	if ref == nil {
 		return nil, errors.New("providerConfigRef is not set")
 	}
+
 	spec, err := getProviderConfigSpec(ctx, kube, *ref, namespace)
 	if err != nil {
 		return nil, err
@@ -65,15 +80,21 @@ func getProviderConfigSpec(ctx context.Context, kube client.Client, ref xpv1.Pro
 	switch ref.Kind {
 	case "ClusterProviderConfig":
 		cpc := &apisv1alpha1.ClusterProviderConfig{}
-		if err := kube.Get(ctx, types.NamespacedName{Name: ref.Name}, cpc); err != nil {
+
+		err := kube.Get(ctx, types.NamespacedName{Name: ref.Name}, cpc)
+		if err != nil {
 			return apisv1alpha1.ProviderConfigSpec{}, err
 		}
+
 		return cpc.Spec, nil
 	default: // "ProviderConfig" or unset
 		pc := &apisv1alpha1.ProviderConfig{}
-		if err := kube.Get(ctx, types.NamespacedName{Name: ref.Name, Namespace: namespace}, pc); err != nil {
+
+		err := kube.Get(ctx, types.NamespacedName{Name: ref.Name, Namespace: namespace}, pc)
+		if err != nil {
 			return apisv1alpha1.ProviderConfigSpec{}, err
 		}
+
 		return pc.Spec, nil
 	}
 }

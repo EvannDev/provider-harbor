@@ -11,7 +11,6 @@ tool github.com/crossplane/crossplane-tools/cmd/angryjet
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/crossplane/crossplane-runtime/v2 v2.0.0
-	github.com/google/go-cmp v0.7.0
 	github.com/mittwald/goharbor-client/v5 v5.6.5
 	github.com/pkg/errors v0.9.1
 	google.golang.org/grpc v1.74.2
@@ -55,6 +54,7 @@ require (
 	github.com/goharbor/harbor/src v0.0.0-20231101063948-5cbb1b010a7b // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.6.9 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect

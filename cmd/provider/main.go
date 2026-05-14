@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The Crossplane Authors.
+Copyright 2026 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -68,6 +67,7 @@ func main() {
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	zl := zap.New(zap.UseDevMode(*debug))
+
 	log := logging.NewLogrLogger(zl.WithName("provider-harbor"))
 	if *debug {
 		// The controller-runtime is *very* verbose even at info level, so we only
@@ -100,8 +100,16 @@ func main() {
 		LeaderElection:             *leaderElection,
 		LeaderElectionID:           "crossplane-leader-election-provider-harbor",
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
-		LeaseDuration:              func() *time.Duration { d := 60 * time.Second; return &d }(),
-		RenewDeadline:              func() *time.Duration { d := 50 * time.Second; return &d }(),
+		LeaseDuration: func() *time.Duration {
+			d := 60 * time.Second
+
+			return &d
+		}(),
+		RenewDeadline: func() *time.Duration {
+			d := 50 * time.Second
+
+			return &d
+		}(),
 	})
 	kingpin.FatalIfError(err, "Cannot create controller manager")
 
@@ -143,7 +151,7 @@ func main() {
 		clo := controller.ChangeLogOptions{
 			ChangeLogger: managed.NewGRPCChangeLogger(
 				changelogsv1alpha1.NewChangeLogServiceClient(conn),
-				managed.WithProviderVersion(fmt.Sprintf("provider-harbor:%s", version.Version))),
+				managed.WithProviderVersion("provider-harbor:"+version.Version)),
 		}
 		o.ChangeLogOptions = &clo
 	}

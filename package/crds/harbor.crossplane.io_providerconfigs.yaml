@@ -30,7 +30,7 @@ spec:
     schema:
       openAPIV3Schema:
         description: A ProviderConfig configures a Helm 'provider', i.e. a connection
-          to a particular
+          to a particular.
         properties:
           apiVersion:
             description: |-

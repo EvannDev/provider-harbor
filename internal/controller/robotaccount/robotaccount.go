@@ -1,3 +1,17 @@
+// Copyright 2026 The Crossplane Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package robotaccount
 
 import (
@@ -16,8 +30,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/statemetrics"
 	apiv2 "github.com/mittwald/goharbor-client/v5/apiv2"
-	harborerrors "github.com/mittwald/goharbor-client/v5/apiv2/pkg/errors"
 	modelv2 "github.com/mittwald/goharbor-client/v5/apiv2/model"
+	harborerrors "github.com/mittwald/goharbor-client/v5/apiv2/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -46,10 +60,12 @@ const (
 // SetupGated adds a controller with safe-start support.
 func SetupGated(mgr ctrl.Manager, o controller.Options) error {
 	o.Gate.Register(func() {
-		if err := Setup(mgr, o); err != nil {
+		err := Setup(mgr, o)
+		if err != nil {
 			panic(errors.Wrap(err, "cannot setup RobotAccount controller"))
 		}
 	}, harborv1alpha1.RobotAccountGroupVersionKind)
+
 	return nil
 }
 
@@ -84,7 +100,9 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 			mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics,
 			&harborv1alpha1.RobotAccountList{}, o.MetricOptions.PollStateMetricInterval,
 		)
-		if err := mgr.Add(stateMetricsRecorder); err != nil {
+
+		err := mgr.Add(stateMetricsRecorder)
+		if err != nil {
 			return errors.Wrap(err, "cannot register MR state metrics recorder for RobotAccountList")
 		}
 	}
@@ -126,6 +144,7 @@ func robotName(cr *harborv1alpha1.RobotAccount) string {
 	if n := meta.GetExternalName(cr); n != "" {
 		return n
 	}
+
 	return cr.GetName()
 }
 
@@ -135,12 +154,16 @@ func (e *external) Observe(ctx context.Context, cr *harborv1alpha1.RobotAccount)
 		if isNotFound(err) {
 			return managed.ExternalObservation{ResourceExists: false}, nil
 		}
+
 		return managed.ExternalObservation{}, errors.Wrap(err, errObserve)
 	}
+
 	if robot == nil {
 		return managed.ExternalObservation{ResourceExists: false}, nil
 	}
+
 	setObservation(cr, robot)
+
 	return managed.ExternalObservation{
 		ResourceExists:   true,
 		ResourceUpToDate: isUpToDate(cr.Spec.ForProvider, robot),
@@ -178,6 +201,7 @@ func (e *external) findRobot(ctx context.Context, cr *harborv1alpha1.RobotAccoun
 		if ns == "" {
 			return nil, nil
 		}
+
 		return findProjectRobotByName(ctx, e.harbor, ns, robotName(cr))
 	}
 
@@ -193,12 +217,14 @@ func findProjectRobotByName(ctx context.Context, cl apiv2.Client, project, name 
 	if err != nil {
 		return nil, err
 	}
+
 	suffix := "+" + name
 	for _, r := range robots {
 		if strings.HasSuffix(stripRobotPrefix(r.Name), suffix) || stripRobotPrefix(r.Name) == name {
 			return r, nil
 		}
 	}
+
 	return nil, &harborerrors.ErrRobotAccountUnknownResource{}
 }
 
@@ -210,6 +236,7 @@ func projectNamespace(perms []harborv1alpha1.RobotAccountPermission) string {
 			return p.Namespace
 		}
 	}
+
 	return ""
 }
 
@@ -253,6 +280,7 @@ func (e *external) Create(ctx context.Context, cr *harborv1alpha1.RobotAccount) 
 	if ann == nil {
 		ann = make(map[string]string)
 	}
+
 	ann[annotationRobotID] = strconv.FormatInt(created.ID, 10)
 	cr.SetAnnotations(ann)
 
@@ -273,6 +301,7 @@ func (e *external) Update(ctx context.Context, cr *harborv1alpha1.RobotAccount) 
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, errUpdate)
 	}
+
 	if robot == nil {
 		return managed.ExternalUpdate{}, errors.New(errUpdate + ": robot not found")
 	}
@@ -294,8 +323,10 @@ func (e *external) Delete(ctx context.Context, cr *harborv1alpha1.RobotAccount) 
 		if isNotFound(err) {
 			return managed.ExternalDelete{}, nil
 		}
+
 		return managed.ExternalDelete{}, errors.Wrap(err, errDelete)
 	}
+
 	if robot == nil {
 		// Namespace not resolved; nothing to delete.
 		return managed.ExternalDelete{}, nil
@@ -305,8 +336,10 @@ func (e *external) Delete(ctx context.Context, cr *harborv1alpha1.RobotAccount) 
 		if isNotFound(err) {
 			return managed.ExternalDelete{}, nil
 		}
+
 		return managed.ExternalDelete{}, errors.Wrap(err, errDelete)
 	}
+
 	return managed.ExternalDelete{}, nil
 }
 
@@ -333,6 +366,7 @@ func validatePermissions(perms []harborv1alpha1.RobotAccountPermission) error {
 				"the referenced Project may not be ready yet; will retry", i)
 		}
 	}
+
 	return nil
 }
 
@@ -352,12 +386,14 @@ func toRobotCreate(name string, p harborv1alpha1.RobotAccountParameters) *modelv
 	if p.Duration != nil {
 		req.Duration = *p.Duration
 	}
+
 	return req
 }
 
 func applyParameters(p harborv1alpha1.RobotAccountParameters, robot *modelv2.Robot) {
 	robot.Description = p.Description
 	robot.Disable = p.Disable
+
 	robot.Permissions = toHarborPermissions(p.Permissions)
 	if p.Duration != nil {
 		robot.Duration = *p.Duration
@@ -374,12 +410,14 @@ func toHarborPermissions(perms []harborv1alpha1.RobotAccountPermission) []*model
 				Action:   a.Action,
 			}
 		}
+
 		out[i] = &modelv2.RobotPermission{
 			Kind:      p.Kind,
 			Namespace: p.Namespace,
 			Access:    access,
 		}
 	}
+
 	return out
 }
 
@@ -387,28 +425,35 @@ func isUpToDate(p harborv1alpha1.RobotAccountParameters, robot *modelv2.Robot) b
 	if p.Description != robot.Description {
 		return false
 	}
+
 	if p.Disable != robot.Disable {
 		return false
 	}
+
 	if p.Duration != nil && *p.Duration != robot.Duration {
 		return false
 	}
+
 	if len(p.Permissions) != len(robot.Permissions) {
 		return false
 	}
+
 	for i, perm := range p.Permissions {
 		rp := robot.Permissions[i]
 		if perm.Kind != rp.Kind || perm.Namespace != rp.Namespace {
 			return false
 		}
+
 		if len(perm.Access) != len(rp.Access) {
 			return false
 		}
+
 		for j, a := range perm.Access {
 			if a.Resource != rp.Access[j].Resource || a.Action != rp.Access[j].Action {
 				return false
 			}
 		}
 	}
+
 	return true
 }

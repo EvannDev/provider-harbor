@@ -16,8 +16,8 @@ permissions:
 
 env:
   # Common versions
-  GO_VERSION: "1.26.2"
-  GOLANGCI_VERSION: "v2.11.4"
+  GO_VERSION: "1.26.3"
+  GOLANGCI_VERSION: "v2.12.2"
   DOCKER_BUILDX_VERSION: "v0.23.0"
 
   # Common users. We can't run a step 'if secrets.XXX != ""' but we can run a
@@ -348,5 +348,5 @@ jobs:
       - name: Publish Artifacts
         if: github.event_name != 'pull_request'
         env:
-          XPKG_REG_ORGS: ${{ env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && 'xpkg.upbound.io/crossplane-contrib ghcr.io/EvannDev' || 'ghcr.io/EvannDev' }}
+          XPKG_REG_ORGS: ${{ env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && 'xpkg.upbound.io/crossplane-contrib ghcr.io/evanndev' || 'ghcr.io/evanndev' }}
         run: make publish BRANCH_NAME=${GITHUB_REF##*/} RELEASE_BRANCH_FILTER='main master release-% v%'
