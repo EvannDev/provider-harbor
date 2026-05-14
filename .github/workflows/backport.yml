@@ -18,11 +18,11 @@ jobs:
   # The main gotcha with this action is that PRs _must_ be labelled before they're
   # merged to trigger a backport.
   open-pr:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: github.event.pull_request.merged
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Open Backport PR
-        uses: korthout/backport-action@v1
+        uses: korthout/backport-action@bf97bcfb53d5250af8b9a15fab0f56158a63b224 # v4.5.1
