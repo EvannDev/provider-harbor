@@ -1,0 +1,55 @@
+# Minimal Harbor Helm values for a Kind-based e2e cluster.
+# Persistence is disabled and optional components are turned off to keep
+# the footprint small and startup time short.
+expose:
+  type: clusterIP
+  clusterIP:
+    name: harbor
+
+externalURL: http://harbor-core.default.svc.cluster.local
+
+persistence:
+  enabled: false
+
+# Reduce resource requests to fit comfortably in a single-node Kind cluster.
+core:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+jobservice:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+registry:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+redis:
+  internal:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+
+database:
+  internal:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+# Disable optional components not needed for e2e tests.
+chartmuseum:
+  enabled: false
+
+notary:
+  enabled: false
+
+trivy:
+  enabled: false

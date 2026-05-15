@@ -61,6 +61,16 @@ test-integration: $(KIND) $(KUBECTL) $(CROSSPLANE_CLI) $(HELM3)
 	@KIND_NODE_IMAGE_TAG=${KIND_NODE_IMAGE_TAG} $(ROOT_DIR)/cluster/local/integration_tests.sh || $(FAIL)
 	@$(OK) integration tests passed
 
+# E2E test timeout — override on the command line: make e2e.test E2E_TEST_TIMEOUT=60m
+E2E_TEST_TIMEOUT ?= 30m
+
+# Run the e2e Go test suite against a live Harbor instance.
+# Requires HARBOR_URL, HARBOR_USERNAME, and HARBOR_PASSWORD to be exported.
+e2e.test:
+	@$(INFO) running e2e tests
+	@go test -tags=e2e -timeout=$(E2E_TEST_TIMEOUT) ./internal/test/e2e/... || $(FAIL)
+	@$(OK) e2e tests passed
+
 # Update the submodules, such as the common build scripts.
 submodules:
 	@git submodule sync
@@ -104,7 +114,7 @@ dev-clean: $(KIND) $(KUBECTL)
 	@$(INFO) Deleting kind cluster
 	@$(KIND) delete cluster --name=$(PROJECT_NAME)-dev
 
-.PHONY: submodules fallthrough test-integration run dev dev-clean
+.PHONY: submodules fallthrough test-integration e2e.test run dev dev-clean
 
 # ====================================================================================
 # Special Targets

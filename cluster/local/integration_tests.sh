@@ -173,21 +173,34 @@ echo_step "waiting for provider to be installed"
 
 kubectl wait "provider.pkg.crossplane.io/${PACKAGE_NAME}" --for=condition=healthy --timeout=180s
 
-echo_step "uninstalling ${PROJECT_NAME}"
+# ----------- Harbor setup ---------------------------------------------------
+echo_step "--- HARBOR SETUP ---"
 
-echo "${INSTALL_YAML}" | "${KUBECTL}" delete -f -
+HARBOR_LOCAL_PORT="${HARBOR_LOCAL_PORT:-8080}"
+HARBOR_ADMIN_PASSWORD="${HARBOR_ADMIN_PASSWORD:-Harbor12345}"
 
-# check pods deleted
-timeout=60
-current=0
-step=3
-while [[ $(kubectl get providerrevision.pkg.crossplane.io -o name | wc -l) != "0" ]]; do
-  echo "waiting for provider to be deleted for another $step seconds"
-  current=$current+$step
-  if ! [[ $timeout > $current ]]; then
-    echo_error "timeout of ${timeout}s has been reached"
-  fi
-  sleep $step;
-done
+KUBECTL="${KUBECTL}" HELM3="${HELM3}" \
+  HARBOR_LOCAL_PORT="${HARBOR_LOCAL_PORT}" \
+  HARBOR_ADMIN_PASSWORD="${HARBOR_ADMIN_PASSWORD}" \
+  bash "${projectdir}/cluster/local/harbor_setup.sh"
+
+# Open a persistent port-forward so the e2e suite can reach Harbor.
+# The process is a child of this script and will be killed when the script
+# exits, so no additional trap is required.
+echo_step "port-forwarding harbor-core to localhost:${HARBOR_LOCAL_PORT}"
+"${KUBECTL}" port-forward service/harbor-core \
+    "${HARBOR_LOCAL_PORT}:80" \
+    --namespace=default \
+    >/dev/null 2>&1 &
+
+# ----------- E2E tests -------------------------------------------------------
+echo_step "--- E2E TESTS ---"
+
+export HARBOR_URL="http://localhost:${HARBOR_LOCAL_PORT}"
+export HARBOR_USERNAME="admin"
+export HARBOR_PASSWORD="${HARBOR_ADMIN_PASSWORD}"
+export HARBOR_PROVIDERCONFIG="e2e"
+
+make --no-print-directory -C "${projectdir}" e2e.test
 
 echo_success "Integration tests succeeded!"
