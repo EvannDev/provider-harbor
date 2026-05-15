@@ -87,7 +87,7 @@ func isMetadataUpToDate(desired *v1alpha1.ProjectMetadataParameters, observed *m
 		helpers.IsStringifiedBoolEqual(desired.EnableContentTrust, observed.EnableContentTrust) &&
 		helpers.IsStringifiedBoolEqual(desired.EnableContentTrustCosign, observed.EnableContentTrustCosign) &&
 		helpers.IsStringifiedBoolEqual(desired.PreventVulnerable, observed.PreventVul) &&
-		helpers.IsComparablePtrEqualComparablePtr(desired.Severity, observed.Severity) &&
+		(desired.Severity == nil || helpers.IsComparablePtrEqualComparablePtr(desired.Severity, observed.Severity)) &&
 		helpers.IsStringifiedBoolEqual(desired.ReuseSysCVEAllowlist, observed.ReuseSysCVEAllowlist)
 }
 
