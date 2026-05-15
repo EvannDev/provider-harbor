@@ -10,11 +10,5 @@ guidelines and responsibilities for the steering committee and maintainers.
 
 ## Maintainers
 
-* Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
-* Chuan-Yen Chiang <cychiang0823@gmail.com> ([cychiang](https://github.com/cychiang))
-
-## Emeritus Maintainers
-
-* Nic Cope <negz@upbound.io> ([negz](https://github.com/negz))
-* Daniel Mangum <dan@upbound.io> ([hasheddan](https://github.com/hasheddan))
-* Muvaffak Onuş <monus@upbound.io> ([muvaf](https://github.com/muvaf))
+* Evann De Bailliencourt <evanndebailliencourt83@gmail.com> ([EvannDev](https://github.com/EvannDev))
+* BoxBoxJason <contact@boxboxjason.dev> ([BoxBoxJason](https://github.com/BoxBoxJason))
