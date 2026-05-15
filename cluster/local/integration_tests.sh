@@ -1,206 +1,172 @@
 #!/usr/bin/env bash
-set -e
+# End-to-end integration test runner.
+#
+# Requires: kind, kubectl, helm, docker, go (all installed by make targets).
+# The script is called by `make e2e.run` / `make test-integration`.
+set -euo pipefail
 
-# setting up colors
+# ---------------------------------------------------------------------------
+# Colours
+# ---------------------------------------------------------------------------
 BLU='\033[0;34m'
-YLW='\033[0;33m'
 GRN='\033[0;32m'
 RED='\033[0;31m'
-NOC='\033[0m' # No Color
-echo_info(){
-    printf "\n${BLU}%s${NOC}" "$1"
-}
-echo_step(){
-    printf "\n${BLU}>>>>>>> %s${NOC}\n" "$1"
-}
-echo_sub_step(){
-    printf "\n${BLU}>>> %s${NOC}\n" "$1"
-}
+NOC='\033[0m'
+echo_step()    { printf "\n${BLU}>>>>>>> %s${NOC}\n" "$1"; }
+echo_success() { printf "\n${GRN}%s${NOC}\n" "$1"; }
+echo_error()   { printf "\n${RED}%s${NOC}\n" "$1"; exit 1; }
 
-echo_step_completed(){
-    printf "${GRN} [✔]${NOC}"
-}
-
-echo_success(){
-    printf "\n${GRN}%s${NOC}\n" "$1"
-}
-echo_warn(){
-    printf "\n${YLW}%s${NOC}" "$1"
-}
-echo_error(){
-    printf "\n${RED}%s${NOC}" "$1"
-    exit 1
-}
-
-
-# The name of your provider. Many provider Makefiles override this value.
 PACKAGE_NAME="provider-harbor"
-
-
-# ------------------------------
 projectdir="$( cd "$( dirname "${BASH_SOURCE[0]}")"/../.. && pwd )"
 
-# get the build environment variables from the special build.vars target in the main makefile
-eval $(make --no-print-directory -C ${projectdir} build.vars)
+# Pull tool paths and project metadata from the build submodule.
+eval "$(make --no-print-directory -C "${projectdir}" build.vars)"
 
-# ------------------------------
+# Match the cluster name set in the Makefile so controlplane.up and this
+# script target the same cluster.
+KIND_CLUSTER_NAME="${KIND_CLUSTER_NAME:-${BUILD_REGISTRY}-inttests}"
+export KIND_CLUSTER_NAME
 
-SAFEHOSTARCH="${SAFEHOSTARCH:-amd64}"
-BUILD_IMAGE="${BUILD_REGISTRY}/${PROJECT_NAME}-${SAFEHOSTARCH}"
-PACKAGE_IMAGE="crossplane.io/inttests/${PROJECT_NAME}:${VERSION}"
-CONTROLLER_IMAGE="${BUILD_REGISTRY}/${PROJECT_NAME}-controller-${SAFEHOSTARCH}"
-
-version_tag="$(cat ${projectdir}/_output/version)"
-# tag as latest version to load into kind cluster
-PACKAGE_CONTROLLER_IMAGE="${DOCKER_REGISTRY}/${PROJECT_NAME}-controller:${VERSION}"
-K8S_CLUSTER="${K8S_CLUSTER:-${BUILD_REGISTRY}-inttests}"
-
-CROSSPLANE_NAMESPACE="crossplane-system"
-
-# cleanup on exit
-if [ "$skipcleanup" != true ]; then
-  function cleanup {
-    echo_step "Cleaning up..."
-    export KUBECONFIG=
-    "${KIND}" delete cluster --name="${K8S_CLUSTER}"
+# ---------------------------------------------------------------------------
+# Cleanup on exit (unless caller sets skipcleanup=true so diagnostics can run)
+# ---------------------------------------------------------------------------
+if [ "${skipcleanup:-}" != "true" ]; then
+  cleanup() {
+    echo_step "cleaning up kind cluster"
+    "${KIND}" delete cluster --name="${KIND_CLUSTER_NAME}" || true
   }
-
   trap cleanup EXIT
 fi
 
-# setup package cache
-echo_step "setting up local package cache"
-CACHE_PATH="${projectdir}/.work/inttest-package-cache"
-mkdir -p "${CACHE_PATH}"
-echo "created cache dir at ${CACHE_PATH}"
-docker tag "${BUILD_IMAGE}" "${PACKAGE_IMAGE}"
-"${UP}" xpkg xp-extract --from-daemon "${PACKAGE_IMAGE}" -o "${CACHE_PATH}/${PACKAGE_NAME}.gz" && chmod 644 "${CACHE_PATH}/${PACKAGE_NAME}.gz"
+# ---------------------------------------------------------------------------
+# Guard: the xpkg must already be built
+# ---------------------------------------------------------------------------
+if [ ! -f "${OUTPUT_DIR}/xpkg/${PLATFORM}/${PACKAGE_NAME}-${VERSION}.xpkg" ]; then
+    echo_error "xpkg not built — run 'make build' first"
+fi
 
-# create kind cluster with extra mounts
-KIND_NODE_IMAGE="kindest/node:${KIND_NODE_IMAGE_TAG}"
-echo_step "creating k8s cluster using kind ${KIND_VERSION} and node image ${KIND_NODE_IMAGE}"
-KIND_CONFIG="$( cat <<EOF
-kind: Cluster
-apiVersion: kind.x-k8s.io/v1alpha4
-nodes:
-- role: control-plane
-  extraMounts:
-  - hostPath: "${CACHE_PATH}/"
-    containerPath: /cache
-EOF
-)"
-echo "${KIND_CONFIG}" | "${KIND}" create cluster --name="${K8S_CLUSTER}" --wait=5m --image="${KIND_NODE_IMAGE}" --config=-
+# ---------------------------------------------------------------------------
+# 1. Spin up kind + Crossplane
+# ---------------------------------------------------------------------------
+echo_step "creating kind controlplane and installing Crossplane"
+make -C "${projectdir}" controlplane.up
 
-# tag controller image and load it into kind cluster
-docker tag "${CONTROLLER_IMAGE}" "${PACKAGE_CONTROLLER_IMAGE}"
-"${KIND}" load docker-image "${PACKAGE_CONTROLLER_IMAGE}" --name="${K8S_CLUSTER}"
+# ---------------------------------------------------------------------------
+# 2. Deploy the provider package using the local xpkg
+# ---------------------------------------------------------------------------
+echo_step "deploying ${PACKAGE_NAME} provider package"
+make -C "${projectdir}" "local.xpkg.deploy.provider.${PACKAGE_NAME}"
 
-echo_step "create crossplane-system namespace"
-"${KUBECTL}" create ns crossplane-system
+# ---------------------------------------------------------------------------
+# 3. Grant the provider SA permission to list/watch CRDs (needed for safe-start)
+# ---------------------------------------------------------------------------
+echo_step "granting provider service account CRD watch permission"
+provider_sa=""
+for _ in $(seq 1 60); do
+    # Use || true so that grep's non-zero exit (no match yet) does not abort
+    # the script under set -euo pipefail.
+    provider_sa="$("${KUBECTL}" get sa -n crossplane-system -o name 2>/dev/null \
+        | (grep "${PACKAGE_NAME}" || true) | head -1 | sed 's|^serviceaccount/||')"
+    if [ -n "${provider_sa}" ]; then break; fi
+    sleep 2
+done
+if [ -z "${provider_sa}" ]; then
+    echo_error "provider service account did not appear within 120s"
+fi
 
-echo_step "create persistent volume and claim for mounting package-cache"
-PV_YAML="$( cat <<EOF
-apiVersion: v1
-kind: PersistentVolume
+"${KUBECTL}" apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
 metadata:
-  name: package-cache
-  labels:
-    type: local
-spec:
-  storageClassName: manual
-  capacity:
-    storage: 5Mi
-  accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "/cache"
-EOF
-)"
-echo "${PV_YAML}" | "${KUBECTL}" create -f -
-
-PVC_YAML="$( cat <<EOF
-apiVersion: v1
-kind: PersistentVolumeClaim
+  name: ${PACKAGE_NAME}-crd-watcher
+rules:
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
 metadata:
-  name: package-cache
-  namespace: crossplane-system
-spec:
-  accessModes:
-    - ReadWriteOnce
-  volumeName: package-cache
-  storageClassName: manual
-  resources:
-    requests:
-      storage: 1Mi
+  name: ${PACKAGE_NAME}-crd-watcher
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ${PACKAGE_NAME}-crd-watcher
+subjects:
+  - kind: ServiceAccount
+    name: ${provider_sa}
+    namespace: crossplane-system
 EOF
-)"
-echo "${PVC_YAML}" | "${KUBECTL}" create -f -
 
-# install crossplane from stable channel
-echo_step "installing crossplane from stable channel"
-"${HELM3}" repo add crossplane-stable https://charts.crossplane.io/stable/
-chart_version="$("${HELM3}" search repo crossplane-stable/crossplane | awk 'FNR == 2 {print $2}')"
-echo_info "using crossplane version ${chart_version}"
-echo
-# we replace empty dir with our PVC so that the /cache dir in the kind node
-# container is exposed to the crossplane pod
-"${HELM3}" install crossplane --namespace crossplane-system crossplane-stable/crossplane --version ${chart_version} --wait --set packageCache.pvc=package-cache
+echo_step "waiting for provider to become healthy"
+"${KUBECTL}" wait "provider.pkg.crossplane.io/${PACKAGE_NAME}" \
+    --for=condition=healthy --timeout=300s
 
-# ----------- integration tests
-echo_step "--- INTEGRATION TESTS ---"
-
-# install package
-echo_step "installing ${PROJECT_NAME} into \"${CROSSPLANE_NAMESPACE}\" namespace"
-
-INSTALL_YAML="$( cat <<EOF
-apiVersion: pkg.crossplane.io/v1
-kind: Provider
-metadata:
-  name: "${PACKAGE_NAME}"
-spec:
-  package: "${PACKAGE_NAME}"
-  packagePullPolicy: Never
-EOF
-)"
-
-echo "${INSTALL_YAML}" | "${KUBECTL}" apply -f -
-
-# printing the cache dir contents can be useful for troubleshooting failures
-echo_step "check kind node cache dir contents"
-docker exec "${K8S_CLUSTER}-control-plane" ls -la /cache
-
-echo_step "waiting for provider to be installed"
-
-kubectl wait "provider.pkg.crossplane.io/${PACKAGE_NAME}" --for=condition=healthy --timeout=180s
-
-# ----------- Harbor setup ---------------------------------------------------
-echo_step "--- HARBOR SETUP ---"
-
+# ---------------------------------------------------------------------------
+# 4. Deploy Harbor and create the ClusterProviderConfig
+# ---------------------------------------------------------------------------
 HARBOR_LOCAL_PORT="${HARBOR_LOCAL_PORT:-8080}"
 HARBOR_ADMIN_PASSWORD="${HARBOR_ADMIN_PASSWORD:-Harbor12345}"
 
-KUBECTL="${KUBECTL}" HELM3="${HELM3}" \
-  HARBOR_LOCAL_PORT="${HARBOR_LOCAL_PORT}" \
-  HARBOR_ADMIN_PASSWORD="${HARBOR_ADMIN_PASSWORD}" \
-  bash "${projectdir}/cluster/local/harbor_setup.sh"
+echo_step "pulling and loading Harbor images into kind cluster"
+# Pre-loading images avoids Docker Hub pull rate limits inside the cluster.
+HARBOR_VERSION="v2.15.0"
+for img in \
+    "docker.io/goharbor/nginx-photon:${HARBOR_VERSION}" \
+    "docker.io/goharbor/harbor-portal:${HARBOR_VERSION}" \
+    "docker.io/goharbor/harbor-core:${HARBOR_VERSION}" \
+    "docker.io/goharbor/harbor-jobservice:${HARBOR_VERSION}" \
+    "docker.io/goharbor/registry-photon:${HARBOR_VERSION}" \
+    "docker.io/goharbor/harbor-registryctl:${HARBOR_VERSION}" \
+    "docker.io/goharbor/harbor-db:${HARBOR_VERSION}" \
+    "docker.io/goharbor/redis-photon:${HARBOR_VERSION}" \
+    "docker.io/goharbor/harbor-exporter:${HARBOR_VERSION}"; do
+    docker pull --quiet "${img}"
+    "${KIND}" load docker-image "${img}" --name="${KIND_CLUSTER_NAME}"
+done
 
-# Open a persistent port-forward so the e2e suite can reach Harbor.
-# The process is a child of this script and will be killed when the script
-# exits, so no additional trap is required.
+echo_step "configuring in-cluster Harbor and ClusterProviderConfig"
+KUBECTL="${KUBECTL}" \
+HELM3="${HELM}" \
+HARBOR_LOCAL_PORT="${HARBOR_LOCAL_PORT}" \
+HARBOR_ADMIN_PASSWORD="${HARBOR_ADMIN_PASSWORD}" \
+    "${projectdir}/cluster/local/harbor_setup.sh"
+
+# ---------------------------------------------------------------------------
+# 5. Port-forward Harbor for the e2e Go suite
+# ---------------------------------------------------------------------------
 echo_step "port-forwarding harbor-core to localhost:${HARBOR_LOCAL_PORT}"
 "${KUBECTL}" port-forward service/harbor-core \
     "${HARBOR_LOCAL_PORT}:80" \
     --namespace=default \
     >/dev/null 2>&1 &
+harbor_pf_pid=$!
 
-# ----------- E2E tests -------------------------------------------------------
-echo_step "--- E2E TESTS ---"
+# Wait for the port-forward to bind before starting tests.
+for _ in $(seq 1 30); do
+    if curl -sf -o /dev/null \
+        -u "admin:${HARBOR_ADMIN_PASSWORD}" \
+        "http://localhost:${HARBOR_LOCAL_PORT}/api/v2.0/systeminfo"; then
+        break
+    fi
+    sleep 2
+done
 
-export HARBOR_URL="http://localhost:${HARBOR_LOCAL_PORT}"
-export HARBOR_USERNAME="admin"
-export HARBOR_PASSWORD="${HARBOR_ADMIN_PASSWORD}"
-export HARBOR_PROVIDERCONFIG="e2e"
+# ---------------------------------------------------------------------------
+# 6. Run the e2e Go test suite
+# ---------------------------------------------------------------------------
+echo_step "running e2e Go suite"
+e2e_status=0
+HARBOR_URL="http://localhost:${HARBOR_LOCAL_PORT}" \
+HARBOR_USERNAME="admin" \
+HARBOR_PASSWORD="${HARBOR_ADMIN_PASSWORD}" \
+HARBOR_PROVIDERCONFIG="e2e" \
+    make -C "${projectdir}" e2e.test || e2e_status=$?
 
-make --no-print-directory -C "${projectdir}" e2e.test
+kill "${harbor_pf_pid}" 2>/dev/null || true
+
+if [ "${e2e_status}" -ne 0 ]; then
+    echo_error "e2e Go suite failed (exit ${e2e_status})"
+fi
 
 echo_success "Integration tests succeeded!"

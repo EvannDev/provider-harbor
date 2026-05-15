@@ -16,6 +16,8 @@
 set -euo pipefail
 
 KUBECTL="${KUBECTL:-kubectl}"
+# HELM3 may be passed in from integration_tests.sh (where it is set to the
+# build-submodule-managed helm binary path). Fall back to plain "helm".
 HELM3="${HELM3:-helm}"
 
 HARBOR_NAMESPACE="${HARBOR_NAMESPACE:-default}"

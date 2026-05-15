@@ -48,6 +48,16 @@ XPKGS = provider-harbor
 # we ensure image is present in daemon.
 xpkg.build.provider-harbor: do.build.images
 
+# Pin the kind cluster name so integration_tests.sh and the build submodule
+# agree on which cluster to use. Parallel CI runs won't collide.
+KIND_CLUSTER_NAME ?= $(BUILD_REGISTRY)-inttests
+
+# Pin the Crossplane chart version so e2e runs are reproducible.
+CROSSPLANE_VERSION ?= 2.2.1
+
+-include build/makelib/controlplane.mk
+-include build/makelib/local.xpkg.mk
+
 fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
 	@make

@@ -79,8 +79,8 @@ func TestSystemRobotAccountCRUD(t *testing.T) {
 				Duration:    &duration,
 				Permissions: []iamv1alpha1.RobotAccountPermission{
 					{
-						Kind:      "system",
-						Namespace: "/",
+						Kind:      "project",
+						Namespace: "*",
 						Access: []iamv1alpha1.RobotAccountAccess{
 							{Resource: "repository", Action: "pull"},
 						},

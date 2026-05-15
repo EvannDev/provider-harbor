@@ -5,6 +5,8 @@ expose:
   type: clusterIP
   clusterIP:
     name: harbor
+  tls:
+    enabled: false
 
 externalURL: http://harbor-core.default.svc.cluster.local
 
