@@ -40,17 +40,17 @@ type RobotAccountPermission struct {
 
 	// Namespace is the project name this permission applies to.
 	// Use "*" for all projects (system-level robots only).
-	// +crossplane:generate:reference:type=Project
-	// +optional
+	// +crossplane:generate:reference:type=github.com/EvannDev/provider-harbor/apis/project/v1alpha1.Project
+	// +kubebuilder:validation:Optional
 	Namespace string `json:"namespace,omitempty"`
 
 	// NamespaceRef is a reference to a Project managed resource whose
 	// external name will be used as the namespace value.
-	// +optional
+	// +kubebuilder:validation:Optional
 	NamespaceRef *xpv1.NamespacedReference `json:"namespaceRef,omitempty"`
 
 	// NamespaceSelector selects a Project managed resource by labels.
-	// +optional
+	// +kubebuilder:validation:Optional
 	NamespaceSelector *xpv1.NamespacedSelector `json:"namespaceSelector,omitempty"`
 
 	// Access is the list of resource/action pairs granted.
@@ -60,11 +60,11 @@ type RobotAccountPermission struct {
 // RobotAccountParameters defines the desired state of a Harbor robot account.
 type RobotAccountParameters struct {
 	// Description is an optional human-readable description of the robot.
-	// +optional
+	// +kubebuilder:validation:Optional
 	Description string `json:"description,omitempty"`
 
 	// Duration is the token validity period in days. Use -1 for no expiry.
-	// +optional
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=-1
 	Duration *int64 `json:"duration,omitempty"`
 
@@ -74,7 +74,7 @@ type RobotAccountParameters struct {
 	Level string `json:"level"`
 
 	// Disable disables the robot account without deleting it.
-	// +optional
+	// +kubebuilder:validation:Optional
 	Disable bool `json:"disable,omitempty"`
 
 	// Permissions is the list of project/system permissions granted to this robot.
@@ -84,15 +84,15 @@ type RobotAccountParameters struct {
 // RobotAccountObservation holds fields reported by Harbor after reconciliation.
 type RobotAccountObservation struct {
 	// ID is the internal numeric ID assigned by Harbor.
-	// +optional
+	// +kubebuilder:validation:Optional
 	ID *int64 `json:"id,omitempty"`
 
 	// FullName is the full robot account name as returned by Harbor (e.g. robot$name).
-	// +optional
+	// +kubebuilder:validation:Optional
 	FullName *string `json:"fullName,omitempty"`
 
 	// ExpiresAt is the Unix timestamp when the token expires (-1 = never).
-	// +optional
+	// +kubebuilder:validation:Optional
 	ExpiresAt *int64 `json:"expiresAt,omitempty"`
 }
 
@@ -137,13 +137,19 @@ type RobotAccountList struct {
 	Items []RobotAccount `json:"items"`
 }
 
+// RobotAccount type metadata.
 var (
-	RobotAccountKind             = reflect.TypeFor[RobotAccount]().Name()
-	RobotAccountGroupKind        = schema.GroupKind{Group: Group, Kind: RobotAccountKind}.String()
-	RobotAccountKindAPIVersion   = RobotAccountKind + "." + SchemeGroupVersion.String()
+	// RobotAccountKind is the kind name for the RobotAccount type.
+	RobotAccountKind = reflect.TypeFor[RobotAccount]().Name()
+	// RobotAccountGroupKind is the group-kind string for the RobotAccount type.
+	RobotAccountGroupKind = schema.GroupKind{Group: Group, Kind: RobotAccountKind}.String()
+	// RobotAccountKindAPIVersion is the kind/apiVersion for the RobotAccount type.
+	RobotAccountKindAPIVersion = RobotAccountKind + "." + SchemeGroupVersion.String()
+	// RobotAccountGroupVersionKind is the GroupVersionKind for RobotAccount.
 	RobotAccountGroupVersionKind = SchemeGroupVersion.WithKind(RobotAccountKind)
 )
 
+// init registers the RobotAccount types with the SchemeBuilder.
 func init() {
 	SchemeBuilder.Register(&RobotAccount{}, &RobotAccountList{})
 }

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package controller registers all Harbor managed resource controllers.
 package controller
 
 import (
@@ -21,19 +22,19 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/EvannDev/provider-harbor/internal/controller/config"
-	"github.com/EvannDev/provider-harbor/internal/controller/project"
-	"github.com/EvannDev/provider-harbor/internal/controller/robotaccount"
+	robotaccountcontroller "github.com/EvannDev/provider-harbor/internal/controller/iam/robotaccount"
+	projectcontroller "github.com/EvannDev/provider-harbor/internal/controller/project/project"
 )
 
-// SetupGated creates all Harbor controllers with safe-start support and adds them to
-// the supplied manager.
-func SetupGated(mgr ctrl.Manager, o controller.Options) error {
+// SetupGated creates all Harbor controllers with safe-start support and
+// adds them to the supplied manager.
+func SetupGated(mgr ctrl.Manager, opts controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		config.Setup,
-		project.SetupGated,
-		robotaccount.SetupGated,
+		projectcontroller.SetupGated,
+		robotaccountcontroller.SetupGated,
 	} {
-		err := setup(mgr, o)
+		err := setup(mgr, opts)
 		if err != nil {
 			return err
 		}

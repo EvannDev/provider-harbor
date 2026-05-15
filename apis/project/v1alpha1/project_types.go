@@ -27,60 +27,61 @@ import (
 // ProjectMetadataParameters configures Harbor project-level feature flags.
 type ProjectMetadataParameters struct {
 	// Public controls whether the project is publicly accessible.
-	// +optional
+	// +kubebuilder:validation:Optional
 	Public *bool `json:"public,omitempty"`
 
 	// AutoScan enables automatic vulnerability scanning on image push.
-	// +optional
+	// +kubebuilder:validation:Optional
 	AutoScan *bool `json:"autoScan,omitempty"`
 
 	// EnableContentTrust blocks unsigned image pulls when true.
-	// +optional
+	// +kubebuilder:validation:Optional
 	EnableContentTrust *bool `json:"enableContentTrust,omitempty"`
 
 	// EnableContentTrustCosign blocks pulls of images without a cosign signature when true.
-	// +optional
+	// +kubebuilder:validation:Optional
 	EnableContentTrustCosign *bool `json:"enableContentTrustCosign,omitempty"`
 
 	// PreventVulnerable blocks image pulls when vulnerabilities exceed Severity.
-	// +optional
+	// +kubebuilder:validation:Optional
 	PreventVulnerable *bool `json:"preventVulnerable,omitempty"`
 
 	// Severity is the minimum vulnerability level that blocks image pulls.
 	// Requires PreventVulnerable to be true.
-	// +optional
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=none;low;medium;high;critical
 	Severity *string `json:"severity,omitempty"`
 
 	// ReuseSysCVEAllowlist makes the project inherit the system CVE allowlist.
-	// +optional
-	ReuseSysCVEAllowlist *bool `json:"reuseSysCVEAllowlist,omitempty"`
+	// +kubebuilder:validation:Optional
+	ReuseSysCVEAllowlist *bool `json:"reuseSysCveAllowlist,omitempty"`
 }
 
 // ProjectParameters defines the desired state of a Harbor Project.
 type ProjectParameters struct {
 	// StorageLimit is the storage quota for the project in bytes.
 	// Use -1 for unlimited.
-	// +optional
+	// +kubebuilder:validation:Optional
 	StorageLimit *int64 `json:"storageLimit,omitempty"`
 
 	// Metadata configures project-level feature flags.
-	// +optional
+	// +kubebuilder:validation:Optional
 	Metadata *ProjectMetadataParameters `json:"metadata,omitempty"`
 }
 
-// ProjectObservation holds the fields observed from Harbor after reconciliation.
+// ProjectObservation holds the fields observed from Harbor after
+// reconciliation.
 type ProjectObservation struct {
 	// ProjectID is the internal numeric ID assigned by Harbor.
-	// +optional
-	ProjectID *int32 `json:"projectID,omitempty"`
+	// +kubebuilder:validation:Optional
+	ProjectID *int32 `json:"projectId,omitempty"`
 
 	// OwnerName is the username of the project owner.
-	// +optional
+	// +kubebuilder:validation:Optional
 	OwnerName *string `json:"ownerName,omitempty"`
 
 	// RepoCount is the number of repositories in the project.
-	// +optional
+	// +kubebuilder:validation:Optional
 	RepoCount *int64 `json:"repoCount,omitempty"`
 }
 
@@ -125,13 +126,19 @@ type ProjectList struct {
 	Items []Project `json:"items"`
 }
 
+// Project type metadata.
 var (
-	ProjectKind             = reflect.TypeFor[Project]().Name()
-	ProjectGroupKind        = schema.GroupKind{Group: Group, Kind: ProjectKind}.String()
-	ProjectKindAPIVersion   = ProjectKind + "." + SchemeGroupVersion.String()
+	// ProjectKind is the kind name for the Project type.
+	ProjectKind = reflect.TypeFor[Project]().Name()
+	// ProjectGroupKind is the group-kind string for the Project type.
+	ProjectGroupKind = schema.GroupKind{Group: Group, Kind: ProjectKind}.String()
+	// ProjectKindAPIVersion is the kind/apiVersion string for the Project type.
+	ProjectKindAPIVersion = ProjectKind + "." + SchemeGroupVersion.String()
+	// ProjectGroupVersionKind is the GroupVersionKind for the Project type.
 	ProjectGroupVersionKind = SchemeGroupVersion.WithKind(ProjectKind)
 )
 
+// init registers the Project types with the SchemeBuilder.
 func init() {
 	SchemeBuilder.Register(&Project{}, &ProjectList{})
 }

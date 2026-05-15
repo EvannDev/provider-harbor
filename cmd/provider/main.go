@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package main is the entry point for the Harbor Crossplane provider.
 package main
 
 import (
@@ -48,6 +49,13 @@ import (
 	"github.com/EvannDev/provider-harbor/internal/version"
 )
 
+// leaseDurationSecs is the leader election lease duration in seconds.
+const leaseDurationSecs = 60
+
+// renewDeadlineSecs is the leader election renew deadline in seconds.
+const renewDeadlineSecs = 50
+
+// main is the entry point for the Harbor provider binary.
 func main() {
 	var (
 		app            = kingpin.New(filepath.Base(os.Args[0]), "Template support for Crossplane.").DefaultEnvars()
@@ -66,13 +74,13 @@ func main() {
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
-	zl := zap.New(zap.UseDevMode(*debug))
+	zapLogger := zap.New(zap.UseDevMode(*debug))
+	log := logging.NewLogrLogger(zapLogger.WithName("provider-harbor"))
 
-	log := logging.NewLogrLogger(zl.WithName("provider-harbor"))
 	if *debug {
 		// The controller-runtime is *very* verbose even at info level, so we only
 		// provide it a real logger when we're running in debug mode.
-		ctrl.SetLogger(zl)
+		ctrl.SetLogger(zapLogger)
 	} else {
 		// Setting the controller-runtime logger to a no-op logger by default. This
 		// is not really needed, but otherwise we get a warning from the
@@ -80,10 +88,49 @@ func main() {
 		ctrl.SetLogger(zap.New(zap.WriteTo(io.Discard)))
 	}
 
-	cfg, err := ctrl.GetConfig()
-	kingpin.FatalIfError(err, "Cannot get API server rest config")
+	mgr, err := newManager(*maxReconcileRate, syncInterval, *leaderElection)
+	kingpin.FatalIfError(err, "Cannot create controller manager")
 
-	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, *maxReconcileRate), ctrl.Options{
+	kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add Template APIs to scheme")
+	kingpin.FatalIfError(apiextensionsv1.AddToScheme(mgr.GetScheme()), "Cannot add CustomResourceDefinition to scheme")
+
+	metricRecorder := managed.NewMRMetricRecorder()
+	stateMetrics := statemetrics.NewMRStateMetrics()
+
+	metrics.Registry.MustRegister(metricRecorder)
+	metrics.Registry.MustRegister(stateMetrics)
+
+	opts := buildControllerOptions(log, *maxReconcileRate, *pollInterval, *pollStateMetricInterval, metricRecorder, stateMetrics)
+
+	if *enableManagementPolicies {
+		opts.Features.Enable(feature.EnableBetaManagementPolicies)
+		log.Info("Beta feature enabled", "flag", feature.EnableBetaManagementPolicies)
+	}
+
+	if *enableChangeLogs {
+		opts.Features.Enable(feature.EnableAlphaChangeLogs)
+		log.Info("Alpha feature enabled", "flag", feature.EnableAlphaChangeLogs)
+
+		clo, clErr := buildChangeLogOptions(*changelogsSocketPath)
+		kingpin.FatalIfError(clErr, "failed to create change logs client connection at %s", *changelogsSocketPath)
+
+		opts.ChangeLogOptions = &clo
+	}
+
+	kingpin.FatalIfError(customresourcesgate.Setup(mgr, opts), "Cannot setup CRD gate controller")
+	kingpin.FatalIfError(template.SetupGated(mgr, opts), "Cannot setup Template controllers")
+	kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
+}
+
+// newManager creates the controller-runtime manager with leader election
+// configured.
+func newManager(maxReconcileRate int, syncInterval *time.Duration, leaderElection bool) (ctrl.Manager, error) {
+	cfg, err := ctrl.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, maxReconcileRate), ctrl.Options{
 		// SyncPeriod in ctrl.Options has been removed since controller-runtime v0.16.0
 		// The recommended way is to move it to cache.Options instead
 		Cache: cache.Options{
@@ -97,66 +144,57 @@ func main() {
 		// hundreds of reconciles per second and ~200rps to the API
 		// server. Switching to Leases only and longer leases appears to
 		// alleviate this.
-		LeaderElection:             *leaderElection,
+		LeaderElection:             leaderElection,
 		LeaderElectionID:           "crossplane-leader-election-provider-harbor",
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
-		LeaseDuration: func() *time.Duration {
-			d := 60 * time.Second
-
-			return &d
-		}(),
-		RenewDeadline: func() *time.Duration {
-			d := 50 * time.Second
-
-			return &d
-		}(),
+		LeaseDuration:              durationPtr(leaseDurationSecs * time.Second),
+		RenewDeadline:              durationPtr(renewDeadlineSecs * time.Second),
 	})
-	kingpin.FatalIfError(err, "Cannot create controller manager")
+}
 
-	kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add Template APIs to scheme")
-	kingpin.FatalIfError(apiextensionsv1.AddToScheme(mgr.GetScheme()), "Cannot add CustomResourceDefinition to scheme")
-
-	metricRecorder := managed.NewMRMetricRecorder()
-	stateMetrics := statemetrics.NewMRStateMetrics()
-
-	metrics.Registry.MustRegister(metricRecorder)
-	metrics.Registry.MustRegister(stateMetrics)
-
-	o := controller.Options{
+// buildControllerOptions assembles the controller.Options from parsed flags
+// and pre-built metric recorders.
+func buildControllerOptions(
+	log logging.Logger,
+	maxReconcileRate int,
+	pollInterval time.Duration,
+	pollStateMetricInterval time.Duration,
+	mrMetrics *managed.MRMetricRecorder,
+	stateMetrics *statemetrics.MRStateMetrics,
+) controller.Options {
+	return controller.Options{
 		Logger:                  log,
-		MaxConcurrentReconciles: *maxReconcileRate,
-		PollInterval:            *pollInterval,
-		GlobalRateLimiter:       ratelimiter.NewGlobal(*maxReconcileRate),
+		MaxConcurrentReconciles: maxReconcileRate,
+		PollInterval:            pollInterval,
+		GlobalRateLimiter:       ratelimiter.NewGlobal(maxReconcileRate),
 		Features:                &feature.Flags{},
 		Gate:                    new(gate.Gate[schema.GroupVersionKind]),
 		MetricOptions: &controller.MetricOptions{
-			PollStateMetricInterval: *pollStateMetricInterval,
-			MRMetrics:               metricRecorder,
+			PollStateMetricInterval: pollStateMetricInterval,
+			MRMetrics:               mrMetrics,
 			MRStateMetrics:          stateMetrics,
 		},
 	}
-
-	if *enableManagementPolicies {
-		o.Features.Enable(feature.EnableBetaManagementPolicies)
-		log.Info("Beta feature enabled", "flag", feature.EnableBetaManagementPolicies)
-	}
-
-	if *enableChangeLogs {
-		o.Features.Enable(feature.EnableAlphaChangeLogs)
-		log.Info("Alpha feature enabled", "flag", feature.EnableAlphaChangeLogs)
-
-		conn, err := grpc.NewClient("unix://"+*changelogsSocketPath, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		kingpin.FatalIfError(err, "failed to create change logs client connection at %s", *changelogsSocketPath)
-
-		clo := controller.ChangeLogOptions{
-			ChangeLogger: managed.NewGRPCChangeLogger(
-				changelogsv1alpha1.NewChangeLogServiceClient(conn),
-				managed.WithProviderVersion("provider-harbor:"+version.Version)),
-		}
-		o.ChangeLogOptions = &clo
-	}
-
-	kingpin.FatalIfError(customresourcesgate.Setup(mgr, o), "Cannot setup CRD gate controller")
-	kingpin.FatalIfError(template.SetupGated(mgr, o), "Cannot setup Template controllers")
-	kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
 }
+
+// buildChangeLogOptions dials the changelogs gRPC socket and returns the
+// options.
+func buildChangeLogOptions(socketPath string) (controller.ChangeLogOptions, error) {
+	conn, err := grpc.NewClient(
+		"unix://"+socketPath,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return controller.ChangeLogOptions{}, err
+	}
+
+	return controller.ChangeLogOptions{
+		ChangeLogger: managed.NewGRPCChangeLogger(
+			changelogsv1alpha1.NewChangeLogServiceClient(conn),
+			managed.WithProviderVersion("provider-harbor:"+version.Version),
+		),
+	}, nil
+}
+
+// durationPtr returns a pointer to the given duration value.
+func durationPtr(duration time.Duration) *time.Duration { return &duration }

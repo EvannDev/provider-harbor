@@ -27,13 +27,14 @@ type ProviderConfigStatus struct {
 
 // ProviderCredentials required to authenticate.
 type ProviderCredentials struct {
+	xpv1.CommonCredentialSelectors `json:",inline"`
+
 	// Source of the provider credentials.
 	// +kubebuilder:validation:Enum=None;Secret;InjectedIdentity;Environment;Filesystem
 	Source xpv1.CredentialsSource `json:"source"`
-
-	xpv1.CommonCredentialSelectors `json:",inline"`
 }
 
+// ProviderConfigSpec defines the spec for a Harbor ProviderConfig.
 type ProviderConfigSpec struct {
 	// URL is the endpoint of the Harbor instance, e.g. https://harbor.example.com
 	// +kubebuilder:validation:Pattern=`^https?://`
@@ -41,8 +42,8 @@ type ProviderConfigSpec struct {
 
 	// InsecureSkipTLSVerify disables TLS certificate verification.
 	// Not recommended for production.
-	// +optional
-	InsecureSkipTLSVerify bool `json:"insecureSkipTLSVerify,omitempty"`
+	// +kubebuilder:validation:Optional
+	InsecureSkipTLSVerify bool `json:"insecureSkipTlsVerify,omitempty"`
 
 	// Credentials required to authenticate to Harbor.
 	// The referenced Secret must contain a JSON object with "username" and "password" keys.
@@ -52,11 +53,11 @@ type ProviderConfigSpec struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 
+// ProviderConfig configures a Harbor provider connection.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="SECRET-NAME",type="string",JSONPath=".spec.credentials.secretRef.name",priority=1
 // +kubebuilder:resource:scope=Namespaced,categories={crossplane,provider,template}
-// A ProviderConfig configures a Helm 'provider', i.e. a connection to a particular.
 type ProviderConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -78,12 +79,12 @@ type ProviderConfigList struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 
+// ProviderConfigUsage indicates that a resource is using a ProviderConfig.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="CONFIG-NAME",type="string",JSONPath=".providerConfigRef.name"
 // +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".resourceRef.kind"
 // +kubebuilder:printcolumn:name="RESOURCE-NAME",type="string",JSONPath=".resourceRef.name"
 // +kubebuilder:resource:scope=Namespaced,categories={crossplane,provider,template}
-// A ProviderConfigUsage indicates that a resource is using a ProviderConfig.
 type ProviderConfigUsage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -103,11 +104,11 @@ type ProviderConfigUsageList struct {
 
 // +kubebuilder:object:root=true
 
+// ClusterProviderConfig configures a cluster-scoped Harbor provider connection.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="SECRET-NAME",type="string",JSONPath=".spec.credentials.secretRef.name",priority=1
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,provider,template}
-// A ClusterProviderConfig configures a Template provider.
 type ClusterProviderConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -129,12 +130,13 @@ type ClusterProviderConfigList struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 
+// ClusterProviderConfigUsage indicates that a resource is using a
+// ClusterProviderConfig.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="CONFIG-NAME",type="string",JSONPath=".providerConfigRef.name"
 // +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".resourceRef.kind"
 // +kubebuilder:printcolumn:name="RESOURCE-NAME",type="string",JSONPath=".resourceRef.name"
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,provider,template}
-// A ClusterProviderConfigUsage indicates that a resource is using a ClusterProviderConfig.
 type ClusterProviderConfigUsage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -1,8 +1,6 @@
 module github.com/EvannDev/provider-harbor
 
-go 1.24.0
-
-toolchain go1.24.5
+go 1.26.3
 
 tool sigs.k8s.io/controller-tools/cmd/controller-gen
 

@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: robotaccounts.harbor.crossplane.io
+  name: robotaccounts.iam.harbor.crossplane.io
 spec:
-  group: harbor.crossplane.io
+  group: iam.harbor.crossplane.io
   names:
     categories:
     - crossplane

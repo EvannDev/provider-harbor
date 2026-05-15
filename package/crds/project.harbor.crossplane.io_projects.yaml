@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: projects.harbor.crossplane.io
+  name: projects.project.harbor.crossplane.io
 spec:
-  group: harbor.crossplane.io
+  group: project.harbor.crossplane.io
   names:
     categories:
     - crossplane
@@ -83,7 +83,7 @@ spec:
                         description: Public controls whether the project is publicly
                           accessible.
                         type: boolean
-                      reuseSysCVEAllowlist:
+                      reuseSysCveAllowlist:
                         description: ReuseSysCVEAllowlist makes the project inherit
                           the system CVE allowlist.
                         type: boolean
@@ -168,13 +168,14 @@ spec:
             description: ProjectStatus represents the observed state of a Project.
             properties:
               atProvider:
-                description: ProjectObservation holds the fields observed from Harbor
-                  after reconciliation.
+                description: |-
+                  ProjectObservation holds the fields observed from Harbor after
+                  reconciliation.
                 properties:
                   ownerName:
                     description: OwnerName is the username of the project owner.
                     type: string
-                  projectID:
+                  projectId:
                     description: ProjectID is the internal numeric ID assigned by
                       Harbor.
                     format: int32
