@@ -33,10 +33,6 @@ const (
 	string3 = "string3"
 	// testNewStr is the new test string value.
 	testNewStr = "testNewStr"
-	// boolFalseStr is the string representation of boolean false.
-	boolFalseStr = "false"
-	// boolTrueStr is the string representation of boolean true.
-	boolTrueStr = "true"
 )
 
 // TestIsComparablePtrEqualComparable tests pointer equality with values.

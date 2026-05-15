@@ -61,16 +61,6 @@ const (
 	kindProjectStr = "project"
 )
 
-// ptr64 returns a pointer to the given int64 value.
-func ptr64(val int64) *int64 {
-	return &val
-}
-
-// ptrString returns a pointer to the given string value.
-func ptrString(val string) *string {
-	return &val
-}
-
 // TestNewRobotAccountsClient verifies that NewRobotAccountsClient returns
 // the provided apiv2.Client as a RobotAccountsClient.
 func TestNewRobotAccountsClient(t *testing.T) {
@@ -130,9 +120,9 @@ func TestGenerateRobotAccountObservation(t *testing.T) {
 				ExpiresAt: 9999,
 			},
 			wantNilFields: false,
-			wantID:        ptr64(42),
-			wantFullName:  ptrString(robotMybot),
-			wantExpiresAt: ptr64(9999),
+			wantID:        new(int64(42)),
+			wantFullName:  new(robotMybot),
+			wantExpiresAt: new(int64(9999)),
 		},
 	}
 
@@ -240,7 +230,7 @@ func TestIsRobotAccountUpToDate(t *testing.T) {
 		{
 			name: "duration mismatch returns false when params.Duration set",
 			params: v1alpha1.RobotAccountParameters{
-				Duration:    ptr64(30),
+				Duration:    new(int64(30)),
 				Permissions: matchingPerms,
 			},
 			robot: &modelv2.Robot{
@@ -360,7 +350,7 @@ func TestIsRobotAccountUpToDate(t *testing.T) {
 			params: v1alpha1.RobotAccountParameters{
 				Description: botName,
 				Disable:     false,
-				Duration:    ptr64(30),
+				Duration:    new(int64(30)),
 				Permissions: matchingPerms,
 			},
 			robot: &modelv2.Robot{
@@ -435,7 +425,7 @@ func TestToRobotCreate(t *testing.T) {
 				Description: descMyBot2,
 				Level:       kindSystem,
 				Disable:     true,
-				Duration:    ptr64(60),
+				Duration:    new(int64(60)),
 				Permissions: []v1alpha1.RobotAccountPermission{},
 			},
 			wantDuration:    60,
@@ -539,7 +529,7 @@ func TestApplyRobotAccountParameters(t *testing.T) {
 			params: v1alpha1.RobotAccountParameters{
 				Description: descPatched,
 				Disable:     false,
-				Duration:    ptr64(14),
+				Duration:    new(int64(14)),
 				Permissions: []v1alpha1.RobotAccountPermission{},
 			},
 			initialRobot: &modelv2.Robot{

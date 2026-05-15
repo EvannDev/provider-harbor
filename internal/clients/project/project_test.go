@@ -33,8 +33,6 @@ const (
 	projectNameMyProject = "my-project"
 	// projectNameOther is an alternate test project name.
 	projectNameOther = "other-project"
-	// testStrHarbor is a generic test string value.
-	testStrHarbor = "harbor"
 )
 
 // fakeHarborClient embeds a nil *apiv2.RESTClient to satisfy apiv2.Client
@@ -43,18 +41,6 @@ const (
 type fakeHarborClient struct {
 	*apiv2.RESTClient
 }
-
-// boolPtr returns a pointer to the given bool value.
-func boolPtr(val bool) *bool { return &val }
-
-// int32Ptr returns a pointer to the given int32 value.
-func int32Ptr(val int32) *int32 { return &val }
-
-// int64Ptr returns a pointer to the given int64 value.
-func int64Ptr(val int64) *int64 { return &val }
-
-// stringPtr returns a pointer to the given string value.
-func stringPtr(str string) *string { return &str }
 
 // TestNewProjectsClient verifies that NewProjectsClient returns the
 // apiv2.Client argument unchanged and that the returned value satisfies
@@ -100,18 +86,18 @@ func TestGenerateProjectObservation(t *testing.T) {
 				RepoCount: repoCount,
 			},
 			want: v1alpha1.ProjectObservation{
-				ProjectID: int32Ptr(projectID),
+				ProjectID: new(projectID),
 				OwnerName: &ownerName,
-				RepoCount: int64Ptr(repoCount),
+				RepoCount: new(repoCount),
 			},
 		},
 		{
 			name: "zero-value project maps zero fields",
 			proj: &modelv2.Project{},
 			want: v1alpha1.ProjectObservation{
-				ProjectID: int32Ptr(0),
-				OwnerName: stringPtr(""),
-				RepoCount: int64Ptr(0),
+				ProjectID: new(int32(0)),
+				OwnerName: new(""),
+				RepoCount: new(int64(0)),
 			},
 		},
 	}
@@ -145,7 +131,7 @@ func TestIsProjectUpToDate(t *testing.T) {
 		{
 			name: "StorageLimit non-nil returns false",
 			params: v1alpha1.ProjectParameters{
-				StorageLimit: int64Ptr(1024),
+				StorageLimit: new(int64(1024)),
 			},
 			proj: &modelv2.Project{
 				Metadata: &modelv2.ProjectMetadata{},
@@ -181,12 +167,12 @@ func TestIsProjectUpToDate(t *testing.T) {
 			proj: &modelv2.Project{
 				Metadata: &modelv2.ProjectMetadata{
 					Public:                   boolFalseStr,
-					AutoScan:                 stringPtr(boolFalseStr),
-					EnableContentTrust:       stringPtr(boolFalseStr),
-					EnableContentTrustCosign: stringPtr(boolFalseStr),
-					PreventVul:               stringPtr(boolFalseStr),
-					Severity:                 stringPtr("low"),
-					ReuseSysCVEAllowlist:     stringPtr(boolFalseStr),
+					AutoScan:                 new(boolFalseStr),
+					EnableContentTrust:       new(boolFalseStr),
+					EnableContentTrustCosign: new(boolFalseStr),
+					PreventVul:               new(boolFalseStr),
+					Severity:                 new("low"),
+					ReuseSysCVEAllowlist:     new(boolFalseStr),
 				},
 			},
 			want: true,
@@ -196,24 +182,24 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "all metadata fields match returns true",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					Public:                   boolPtr(true),
-					AutoScan:                 boolPtr(false),
-					EnableContentTrust:       boolPtr(false),
-					EnableContentTrustCosign: boolPtr(false),
-					PreventVulnerable:        boolPtr(true),
-					Severity:                 stringPtr("high"),
-					ReuseSysCVEAllowlist:     boolPtr(true),
+					Public:                   new(true),
+					AutoScan:                 new(false),
+					EnableContentTrust:       new(false),
+					EnableContentTrustCosign: new(false),
+					PreventVulnerable:        new(true),
+					Severity:                 new("high"),
+					ReuseSysCVEAllowlist:     new(true),
 				},
 			},
 			proj: &modelv2.Project{
 				Metadata: &modelv2.ProjectMetadata{
 					Public:                   boolTrueStr,
-					AutoScan:                 stringPtr(boolFalseStr),
-					EnableContentTrust:       stringPtr(boolFalseStr),
-					EnableContentTrustCosign: stringPtr(boolFalseStr),
-					PreventVul:               stringPtr(boolTrueStr),
-					Severity:                 stringPtr("high"),
-					ReuseSysCVEAllowlist:     stringPtr(boolTrueStr),
+					AutoScan:                 new(boolFalseStr),
+					EnableContentTrust:       new(boolFalseStr),
+					EnableContentTrustCosign: new(boolFalseStr),
+					PreventVul:               new(boolTrueStr),
+					Severity:                 new("high"),
+					ReuseSysCVEAllowlist:     new(boolTrueStr),
 				},
 			},
 			want: true,
@@ -223,7 +209,7 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "Public mismatch returns false",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					Public: boolPtr(true),
+					Public: new(true),
 				},
 			},
 			proj: &modelv2.Project{
@@ -238,7 +224,7 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "Public desired false vs observed empty string returns false",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					Public: boolPtr(false),
+					Public: new(false),
 				},
 			},
 			proj: &modelv2.Project{
@@ -253,7 +239,7 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "Public desired false vs observed false returns true",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					Public: boolPtr(false),
+					Public: new(false),
 				},
 			},
 			proj: &modelv2.Project{
@@ -268,12 +254,12 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "AutoScan mismatch returns false",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					AutoScan: boolPtr(true),
+					AutoScan: new(true),
 				},
 			},
 			proj: &modelv2.Project{
 				Metadata: &modelv2.ProjectMetadata{
-					AutoScan: stringPtr(boolFalseStr),
+					AutoScan: new(boolFalseStr),
 				},
 			},
 			want: false,
@@ -283,7 +269,7 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "AutoScan desired true vs observed nil returns false",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					AutoScan: boolPtr(true),
+					AutoScan: new(true),
 				},
 			},
 			proj: &modelv2.Project{
@@ -298,12 +284,12 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "EnableContentTrust mismatch returns false",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					EnableContentTrust: boolPtr(true),
+					EnableContentTrust: new(true),
 				},
 			},
 			proj: &modelv2.Project{
 				Metadata: &modelv2.ProjectMetadata{
-					EnableContentTrust: stringPtr(boolFalseStr),
+					EnableContentTrust: new(boolFalseStr),
 				},
 			},
 			want: false,
@@ -313,12 +299,12 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "EnableContentTrustCosign mismatch returns false",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					EnableContentTrustCosign: boolPtr(true),
+					EnableContentTrustCosign: new(true),
 				},
 			},
 			proj: &modelv2.Project{
 				Metadata: &modelv2.ProjectMetadata{
-					EnableContentTrustCosign: stringPtr(boolFalseStr),
+					EnableContentTrustCosign: new(boolFalseStr),
 				},
 			},
 			want: false,
@@ -328,12 +314,12 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "PreventVulnerable mismatch returns false",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					PreventVulnerable: boolPtr(true),
+					PreventVulnerable: new(true),
 				},
 			},
 			proj: &modelv2.Project{
 				Metadata: &modelv2.ProjectMetadata{
-					PreventVul: stringPtr(boolFalseStr),
+					PreventVul: new(boolFalseStr),
 				},
 			},
 			want: false,
@@ -343,12 +329,12 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "Severity mismatch returns false",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					Severity: stringPtr("high"),
+					Severity: new("high"),
 				},
 			},
 			proj: &modelv2.Project{
 				Metadata: &modelv2.ProjectMetadata{
-					Severity: stringPtr("low"),
+					Severity: new("low"),
 				},
 			},
 			want: false,
@@ -358,7 +344,7 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "Severity desired set vs observed nil returns false",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					Severity: stringPtr("critical"),
+					Severity: new("critical"),
 				},
 			},
 			proj: &modelv2.Project{
@@ -373,12 +359,12 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "ReuseSysCVEAllowlist mismatch returns false",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					ReuseSysCVEAllowlist: boolPtr(true),
+					ReuseSysCVEAllowlist: new(true),
 				},
 			},
 			proj: &modelv2.Project{
 				Metadata: &modelv2.ProjectMetadata{
-					ReuseSysCVEAllowlist: stringPtr(boolFalseStr),
+					ReuseSysCVEAllowlist: new(boolFalseStr),
 				},
 			},
 			want: false,
@@ -388,7 +374,7 @@ func TestIsProjectUpToDate(t *testing.T) {
 			name: "ReuseSysCVEAllowlist desired true vs observed nil returns false",
 			params: v1alpha1.ProjectParameters{
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					ReuseSysCVEAllowlist: boolPtr(true),
+					ReuseSysCVEAllowlist: new(true),
 				},
 			},
 			proj: &modelv2.Project{
@@ -431,12 +417,12 @@ func TestToProjectReq(t *testing.T) {
 			name:    "nil metadata produces req without metadata",
 			reqName: projectNameMyProject,
 			params: v1alpha1.ProjectParameters{
-				StorageLimit: int64Ptr(2048),
+				StorageLimit: new(int64(2048)),
 				Metadata:     nil,
 			},
 			want: &modelv2.ProjectReq{
 				ProjectName:  projectNameMyProject,
-				StorageLimit: int64Ptr(2048),
+				StorageLimit: new(int64(2048)),
 				Metadata:     nil,
 			},
 		},
@@ -446,8 +432,8 @@ func TestToProjectReq(t *testing.T) {
 			params: v1alpha1.ProjectParameters{
 				StorageLimit: nil,
 				Metadata: &v1alpha1.ProjectMetadataParameters{
-					Public:   boolPtr(true),
-					AutoScan: boolPtr(false),
+					Public:   new(true),
+					AutoScan: new(false),
 				},
 			},
 			want: &modelv2.ProjectReq{
@@ -455,7 +441,7 @@ func TestToProjectReq(t *testing.T) {
 				StorageLimit: nil,
 				Metadata: &modelv2.ProjectMetadata{
 					Public:   boolTrueStr,
-					AutoScan: stringPtr(boolFalseStr),
+					AutoScan: new(boolFalseStr),
 				},
 			},
 		},
@@ -508,7 +494,7 @@ func TestApplyProjectParameters(t *testing.T) {
 
 		existing := &modelv2.ProjectMetadata{
 			Public:   boolTrueStr,
-			AutoScan: stringPtr(boolTrueStr),
+			AutoScan: new(boolTrueStr),
 		}
 		proj := &modelv2.Project{Metadata: existing}
 		params := v1alpha1.ProjectParameters{Metadata: nil}
@@ -529,18 +515,18 @@ func TestApplyProjectParameters(t *testing.T) {
 		proj := &modelv2.Project{
 			Metadata: &modelv2.ProjectMetadata{
 				Public:   boolFalseStr,
-				AutoScan: stringPtr(boolFalseStr),
+				AutoScan: new(boolFalseStr),
 			},
 		}
 		params := v1alpha1.ProjectParameters{
 			Metadata: &v1alpha1.ProjectMetadataParameters{
-				Public:                   boolPtr(true),
-				AutoScan:                 boolPtr(true),
-				EnableContentTrust:       boolPtr(true),
-				EnableContentTrustCosign: boolPtr(false),
-				PreventVulnerable:        boolPtr(true),
-				Severity:                 stringPtr("critical"),
-				ReuseSysCVEAllowlist:     boolPtr(false),
+				Public:                   new(true),
+				AutoScan:                 new(true),
+				EnableContentTrust:       new(true),
+				EnableContentTrustCosign: new(false),
+				PreventVulnerable:        new(true),
+				Severity:                 new("critical"),
+				ReuseSysCVEAllowlist:     new(false),
 			},
 		}
 
@@ -548,12 +534,12 @@ func TestApplyProjectParameters(t *testing.T) {
 
 		want := &modelv2.ProjectMetadata{
 			Public:                   boolTrueStr,
-			AutoScan:                 stringPtr(boolTrueStr),
-			EnableContentTrust:       stringPtr(boolTrueStr),
-			EnableContentTrustCosign: stringPtr(boolFalseStr),
-			PreventVul:               stringPtr(boolTrueStr),
-			Severity:                 stringPtr("critical"),
-			ReuseSysCVEAllowlist:     stringPtr(boolFalseStr),
+			AutoScan:                 new(boolTrueStr),
+			EnableContentTrust:       new(boolTrueStr),
+			EnableContentTrustCosign: new(boolFalseStr),
+			PreventVul:               new(boolTrueStr),
+			Severity:                 new("critical"),
+			ReuseSysCVEAllowlist:     new(boolFalseStr),
 		}
 
 		if !reflect.DeepEqual(proj.Metadata, want) {
@@ -570,8 +556,8 @@ func TestApplyProjectParameters(t *testing.T) {
 		proj := &modelv2.Project{Metadata: nil}
 		params := v1alpha1.ProjectParameters{
 			Metadata: &v1alpha1.ProjectMetadataParameters{
-				Public:   boolPtr(false),
-				Severity: stringPtr("low"),
+				Public:   new(false),
+				Severity: new("low"),
 			},
 		}
 
@@ -579,7 +565,7 @@ func TestApplyProjectParameters(t *testing.T) {
 
 		want := &modelv2.ProjectMetadata{
 			Public:   boolFalseStr,
-			Severity: stringPtr("low"),
+			Severity: new("low"),
 		}
 
 		if !reflect.DeepEqual(proj.Metadata, want) {
@@ -610,7 +596,7 @@ func TestToHarborProjectMetadata(t *testing.T) {
 		{
 			name: "Public true is converted to string true",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				Public: boolPtr(true),
+				Public: new(true),
 			},
 			want: &modelv2.ProjectMetadata{
 				Public: boolTrueStr,
@@ -619,7 +605,7 @@ func TestToHarborProjectMetadata(t *testing.T) {
 		{
 			name: "Public false is converted to string false",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				Public: boolPtr(false),
+				Public: new(false),
 			},
 			want: &modelv2.ProjectMetadata{
 				Public: boolFalseStr,
@@ -628,121 +614,121 @@ func TestToHarborProjectMetadata(t *testing.T) {
 		{
 			name: "AutoScan true is converted to pointer to string true",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				AutoScan: boolPtr(true),
+				AutoScan: new(true),
 			},
 			want: &modelv2.ProjectMetadata{
-				AutoScan: stringPtr(boolTrueStr),
+				AutoScan: new(boolTrueStr),
 			},
 		},
 		{
 			name: "AutoScan false is converted to pointer to string false",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				AutoScan: boolPtr(false),
+				AutoScan: new(false),
 			},
 			want: &modelv2.ProjectMetadata{
-				AutoScan: stringPtr(boolFalseStr),
+				AutoScan: new(boolFalseStr),
 			},
 		},
 		{
 			name: "EnableContentTrust true is converted correctly",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				EnableContentTrust: boolPtr(true),
+				EnableContentTrust: new(true),
 			},
 			want: &modelv2.ProjectMetadata{
-				EnableContentTrust: stringPtr(boolTrueStr),
+				EnableContentTrust: new(boolTrueStr),
 			},
 		},
 		{
 			name: "EnableContentTrust false is converted correctly",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				EnableContentTrust: boolPtr(false),
+				EnableContentTrust: new(false),
 			},
 			want: &modelv2.ProjectMetadata{
-				EnableContentTrust: stringPtr(boolFalseStr),
+				EnableContentTrust: new(boolFalseStr),
 			},
 		},
 		{
 			name: "EnableContentTrustCosign true is converted correctly",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				EnableContentTrustCosign: boolPtr(true),
+				EnableContentTrustCosign: new(true),
 			},
 			want: &modelv2.ProjectMetadata{
-				EnableContentTrustCosign: stringPtr(boolTrueStr),
+				EnableContentTrustCosign: new(boolTrueStr),
 			},
 		},
 		{
 			name: "EnableContentTrustCosign false is converted correctly",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				EnableContentTrustCosign: boolPtr(false),
+				EnableContentTrustCosign: new(false),
 			},
 			want: &modelv2.ProjectMetadata{
-				EnableContentTrustCosign: stringPtr(boolFalseStr),
+				EnableContentTrustCosign: new(boolFalseStr),
 			},
 		},
 		{
 			name: "PreventVulnerable true maps to PreventVul string true",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				PreventVulnerable: boolPtr(true),
+				PreventVulnerable: new(true),
 			},
 			want: &modelv2.ProjectMetadata{
-				PreventVul: stringPtr(boolTrueStr),
+				PreventVul: new(boolTrueStr),
 			},
 		},
 		{
 			name: "PreventVulnerable false maps to PreventVul string false",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				PreventVulnerable: boolPtr(false),
+				PreventVulnerable: new(false),
 			},
 			want: &modelv2.ProjectMetadata{
-				PreventVul: stringPtr(boolFalseStr),
+				PreventVul: new(boolFalseStr),
 			},
 		},
 		{
 			name: "Severity non-nil is passed through unchanged",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				Severity: stringPtr("medium"),
+				Severity: new("medium"),
 			},
 			want: &modelv2.ProjectMetadata{
-				Severity: stringPtr("medium"),
+				Severity: new("medium"),
 			},
 		},
 		{
 			name: "ReuseSysCVEAllowlist true is converted correctly",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				ReuseSysCVEAllowlist: boolPtr(true),
+				ReuseSysCVEAllowlist: new(true),
 			},
 			want: &modelv2.ProjectMetadata{
-				ReuseSysCVEAllowlist: stringPtr(boolTrueStr),
+				ReuseSysCVEAllowlist: new(boolTrueStr),
 			},
 		},
 		{
 			name: "ReuseSysCVEAllowlist false is converted correctly",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				ReuseSysCVEAllowlist: boolPtr(false),
+				ReuseSysCVEAllowlist: new(false),
 			},
 			want: &modelv2.ProjectMetadata{
-				ReuseSysCVEAllowlist: stringPtr(boolFalseStr),
+				ReuseSysCVEAllowlist: new(boolFalseStr),
 			},
 		},
 		{
 			name: "all fields set produces fully populated metadata",
 			meta: &v1alpha1.ProjectMetadataParameters{
-				Public:                   boolPtr(true),
-				AutoScan:                 boolPtr(true),
-				EnableContentTrust:       boolPtr(false),
-				EnableContentTrustCosign: boolPtr(false),
-				PreventVulnerable:        boolPtr(true),
-				Severity:                 stringPtr("critical"),
-				ReuseSysCVEAllowlist:     boolPtr(false),
+				Public:                   new(true),
+				AutoScan:                 new(true),
+				EnableContentTrust:       new(false),
+				EnableContentTrustCosign: new(false),
+				PreventVulnerable:        new(true),
+				Severity:                 new("critical"),
+				ReuseSysCVEAllowlist:     new(false),
 			},
 			want: &modelv2.ProjectMetadata{
 				Public:                   boolTrueStr,
-				AutoScan:                 stringPtr(boolTrueStr),
-				EnableContentTrust:       stringPtr(boolFalseStr),
-				EnableContentTrustCosign: stringPtr(boolFalseStr),
-				PreventVul:               stringPtr(boolTrueStr),
-				Severity:                 stringPtr("critical"),
-				ReuseSysCVEAllowlist:     stringPtr(boolFalseStr),
+				AutoScan:                 new(boolTrueStr),
+				EnableContentTrust:       new(boolFalseStr),
+				EnableContentTrustCosign: new(boolFalseStr),
+				PreventVul:               new(boolTrueStr),
+				Severity:                 new("critical"),
+				ReuseSysCVEAllowlist:     new(boolFalseStr),
 			},
 		},
 	}

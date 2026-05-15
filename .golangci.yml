@@ -125,6 +125,7 @@ linters:
           - errcheck
           - exportloopref
           - funlen
+          - goconst
           - gocyclo
           - gosec
           - unparam

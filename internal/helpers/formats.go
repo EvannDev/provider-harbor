@@ -44,13 +44,13 @@ func CloseBody(resp *http.Response) {
 // If the pointer is nil, it returns true.
 // Otherwise, it dereferences the pointer and compares the value with the
 // provided comparable type.
-func IsComparablePtrEqualComparable[T comparable](ptr *T, val T) bool {
-	// if ptr is nil, consider it equal (no difference between nil and any value)
-	if ptr == nil {
+func IsComparablePtrEqualComparable[T comparable](pointer *T, val T) bool {
+	// if pointer is nil, consider it equal (no difference between nil and any value)
+	if pointer == nil {
 		return true
 	}
-	// use cmp library to compare dereferenced ptr with val
-	return cmp.Equal(*ptr, val)
+	// use cmp library to compare dereferenced pointer with val
+	return cmp.Equal(*pointer, val)
 }
 
 // IsComparableSlicePtrEqualComparableSlice compares a pointer to a slice of
@@ -58,13 +58,13 @@ func IsComparablePtrEqualComparable[T comparable](ptr *T, val T) bool {
 // If the pointer is nil, it returns true.
 // Otherwise, it dereferences the pointer and compares the slice with the
 // provided slice of comparable types.
-func IsComparableSlicePtrEqualComparableSlice[T comparable](ptr *[]T, val []T) bool {
-	// if ptr is nil, consider it equal (no difference between nil and any value)
-	if ptr == nil {
+func IsComparableSlicePtrEqualComparableSlice[T comparable](pointer *[]T, val []T) bool {
+	// if pointer is nil, consider it equal (no difference between nil and any value)
+	if pointer == nil {
 		return true
 	}
-	// use cmp library to compare dereferenced ptr with val
-	return cmp.Equal(*ptr, val, cmpopts.EquateEmpty())
+	// use cmp library to compare dereferenced pointer with val
+	return cmp.Equal(*pointer, val, cmpopts.EquateEmpty())
 }
 
 // IsComparableMapPtrEqualComparableMap compares a pointer to a map of
@@ -72,13 +72,13 @@ func IsComparableSlicePtrEqualComparableSlice[T comparable](ptr *[]T, val []T) b
 // If the pointer is nil, it returns true.
 // Otherwise, it dereferences the pointer and compares the map with the
 // provided map of comparable types.
-func IsComparableMapPtrEqualComparableMap[K comparable, V comparable](ptr *map[K]V, val map[K]V) bool {
+func IsComparableMapPtrEqualComparableMap[K comparable, V comparable](pointer *map[K]V, val map[K]V) bool {
 	// if ptr is nil, consider it equal (no difference between nil and any value)
-	if ptr == nil {
+	if pointer == nil {
 		return true
 	}
 	// use cmp library to compare dereferenced ptr with val
-	return cmp.Equal(*ptr, val, cmpopts.EquateEmpty())
+	return cmp.Equal(*pointer, val, cmpopts.EquateEmpty())
 }
 
 // IsComparablePtrEqualComparablePtr compares two pointers to comparable types.
@@ -157,14 +157,14 @@ func AreStringSlicesEqualDeDuped(sliceA, sliceB []string) bool {
 }
 
 // AssignIfNil assigns the value to the pointer if the pointer is nil.
-func AssignIfNil[T any](ptr **T, val T) {
+func AssignIfNil[T any](pointer **T, val T) {
 	// return early if ptr is nil to avoid dereferencing a nil pointer
-	if ptr == nil {
+	if pointer == nil {
 		return
 	}
 	// assign val to ptr if ptr is nil
-	if *ptr == nil {
-		*ptr = &val
+	if *pointer == nil {
+		*pointer = &val
 	}
 }
 
@@ -227,14 +227,14 @@ func AnySliceToStringSlice(slice []any) []string {
 // AssignIfNonNil assigns a value to a pointer if the reference
 // pointer is not nil.
 // If the reference pointer is nil, it does nothing.
-func AssignIfNonNil[T any](ptr, ref *T) {
-	// return early if ptr is nil to avoid dereferencing a nil pointer
-	if ptr == nil {
+func AssignIfNonNil[T any](pointer, ref *T) {
+	// return early if pointer is nil to avoid dereferencing a nil pointer
+	if pointer == nil {
 		return
 	}
-	// assign value of ref to ptr if ref is not nil
+	// assign value of ref to pointer if ref is not nil
 	if ref != nil {
-		*ptr = *ref
+		*pointer = *ref
 	}
 }
 

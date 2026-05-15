@@ -147,8 +147,8 @@ func newManager(maxReconcileRate int, syncInterval *time.Duration, leaderElectio
 		LeaderElection:             leaderElection,
 		LeaderElectionID:           "crossplane-leader-election-provider-harbor",
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
-		LeaseDuration:              durationPtr(leaseDurationSecs * time.Second),
-		RenewDeadline:              durationPtr(renewDeadlineSecs * time.Second),
+		LeaseDuration:              new(leaseDurationSecs * time.Second),
+		RenewDeadline:              new(renewDeadlineSecs * time.Second),
 	})
 }
 
@@ -195,6 +195,3 @@ func buildChangeLogOptions(socketPath string) (controller.ChangeLogOptions, erro
 		),
 	}, nil
 }
-
-// durationPtr returns a pointer to the given duration value.
-func durationPtr(duration time.Duration) *time.Duration { return &duration }
