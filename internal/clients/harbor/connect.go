@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package harbor provides utilities for connecting to the Harbor API.
 package harbor
 
 import (
@@ -31,11 +32,12 @@ import (
 	apisv1alpha1 "github.com/EvannDev/provider-harbor/apis/v1alpha1"
 )
 
-// NewClient builds an authenticated Harbor API client from a ProviderConfig reference.
+// NewClient builds an authenticated Harbor API client from a ProviderConfig
+// reference.
 //
-// It reads the ProviderConfig (or ClusterProviderConfig) named by ref, extracts the
-// Harbor URL and credentials from the referenced Kubernetes Secret, and returns a
-// ready-to-use apiv2.Client that every controller can call directly.
+// It reads the ProviderConfig (or ClusterProviderConfig) named by ref,
+// extracts the Harbor URL and credentials from the referenced Kubernetes
+// Secret, and returns a ready-to-use apiv2.Client.
 func NewClient(ctx context.Context, kube client.Client, ref *xpv1.ProviderConfigReference, namespace string) (apiv2.Client, error) {
 	if ref == nil {
 		return nil, errors.New("providerConfigRef is not set")
@@ -79,22 +81,22 @@ func NewClient(ctx context.Context, kube client.Client, ref *xpv1.ProviderConfig
 func getProviderConfigSpec(ctx context.Context, kube client.Client, ref xpv1.ProviderConfigReference, namespace string) (apisv1alpha1.ProviderConfigSpec, error) {
 	switch ref.Kind {
 	case "ClusterProviderConfig":
-		cpc := &apisv1alpha1.ClusterProviderConfig{}
+		clusterConfig := &apisv1alpha1.ClusterProviderConfig{}
 
-		err := kube.Get(ctx, types.NamespacedName{Name: ref.Name}, cpc)
+		err := kube.Get(ctx, types.NamespacedName{Name: ref.Name}, clusterConfig)
 		if err != nil {
 			return apisv1alpha1.ProviderConfigSpec{}, err
 		}
 
-		return cpc.Spec, nil
+		return clusterConfig.Spec, nil
 	default: // "ProviderConfig" or unset
-		pc := &apisv1alpha1.ProviderConfig{}
+		providerConfig := &apisv1alpha1.ProviderConfig{}
 
-		err := kube.Get(ctx, types.NamespacedName{Name: ref.Name, Namespace: namespace}, pc)
+		err := kube.Get(ctx, types.NamespacedName{Name: ref.Name, Namespace: namespace}, providerConfig)
 		if err != nil {
 			return apisv1alpha1.ProviderConfigSpec{}, err
 		}
 
-		return pc.Spec, nil
+		return providerConfig.Spec, nil
 	}
 }

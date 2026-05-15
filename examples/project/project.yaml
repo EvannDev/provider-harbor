@@ -1,0 +1,21 @@
+apiVersion: project.harbor.crossplane.io/v1alpha1
+kind: Project
+metadata:
+  name: my-project
+  namespace: crossplane-system
+  annotations:
+    # crossplane.io/external-name controls the project name in Harbor.
+    # Defaults to the CR name if not set.
+    crossplane.io/external-name: my-project
+spec:
+  providerConfigRef:
+    name: default
+  forProvider:
+    # storageLimit is the quota in bytes. -1 means unlimited.
+    storageLimit: -1
+    metadata:
+      public: false
+      autoScan: true
+      preventVulnerable: true
+      severity: high
+      reuseSysCveAllowlist: false

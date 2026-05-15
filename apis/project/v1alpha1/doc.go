@@ -14,5 +14,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package harbor contains group harbor API versions
-package harbor
+package v1alpha1

@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package version contains the version of this repo
-package version
+// Package iam contains managed resources for Harbor IAM resources.
+package iam
 
-// Version will be overridden with the current version at build time using
-// the -X linker flag.
-var Version = "0.0.0"
+import (
+	_ "github.com/EvannDev/provider-harbor/apis/iam/v1alpha1" //nolint:blank-imports // imported for side-effect of registering types
+)

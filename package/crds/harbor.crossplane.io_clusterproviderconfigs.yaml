@@ -29,7 +29,8 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A ClusterProviderConfig configures a Template provider.
+        description: ClusterProviderConfig configures a cluster-scoped Harbor provider
+          connection.
         properties:
           apiVersion:
             description: |-
@@ -49,6 +50,7 @@ spec:
           metadata:
             type: object
           spec:
+            description: ProviderConfigSpec defines the spec for a Harbor ProviderConfig.
             properties:
               credentials:
                 description: |-
@@ -108,7 +110,7 @@ spec:
                 required:
                 - source
                 type: object
-              insecureSkipTLSVerify:
+              insecureSkipTlsVerify:
                 description: |-
                   InsecureSkipTLSVerify disables TLS certificate verification.
                   Not recommended for production.

@@ -8,6 +8,7 @@ package v1alpha1
 
 import (
 	"context"
+	v1alpha1 "github.com/EvannDev/provider-harbor/apis/project/v1alpha1"
 	reference "github.com/crossplane/crossplane-runtime/v2/pkg/reference"
 	errors "github.com/pkg/errors"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,8 +29,8 @@ func (mg *RobotAccount) ResolveReferences(ctx context.Context, c client.Reader) 
 			Reference:    mg.Spec.ForProvider.Permissions[i3].NamespaceRef,
 			Selector:     mg.Spec.ForProvider.Permissions[i3].NamespaceSelector,
 			To: reference.To{
-				List:    &ProjectList{},
-				Managed: &Project{},
+				List:    &v1alpha1.ProjectList{},
+				Managed: &v1alpha1.Project{},
 			},
 		})
 		if err != nil {

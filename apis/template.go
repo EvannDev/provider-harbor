@@ -14,25 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package apis contains Kubernetes API for the Template provider.
+// Package apis contains Kubernetes API for the Harbor provider.
 package apis
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	harborv1alpha1 "github.com/EvannDev/provider-harbor/apis/harbor/v1alpha1"
+	iamv1alpha1 "github.com/EvannDev/provider-harbor/apis/iam/v1alpha1"
+	instancev1alpha1 "github.com/EvannDev/provider-harbor/apis/instance/v1alpha1"
+	projectv1alpha1 "github.com/EvannDev/provider-harbor/apis/project/v1alpha1"
 	templatev1alpha1 "github.com/EvannDev/provider-harbor/apis/v1alpha1"
 )
 
+// init appends all Harbor API groups to AddToSchemes.
 func init() {
-	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes,
 		templatev1alpha1.SchemeBuilder.AddToScheme,
-		harborv1alpha1.SchemeBuilder.AddToScheme,
+		iamv1alpha1.SchemeBuilder.AddToScheme,
+		instancev1alpha1.SchemeBuilder.AddToScheme,
+		projectv1alpha1.SchemeBuilder.AddToScheme,
 	)
 }
 
-// AddToSchemes may be used to add all resources defined in the project to a Scheme.
+// AddToSchemes may be used to add all resources defined in the project to a
+// Scheme.
 var AddToSchemes runtime.SchemeBuilder
 
 // AddToScheme adds all Resources to the Scheme.

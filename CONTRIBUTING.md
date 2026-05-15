@@ -41,8 +41,8 @@ Use the helper target to scaffold a new resource type:
 
 ```shell
 export provider_name=Harbor
-export group=instance
-export type=QualityGate
+export group=project
+export type=Project
 make provider.addtype provider=${provider_name} group=${group} kind=${type}
 ```
 
