@@ -48,6 +48,16 @@ XPKGS = provider-harbor
 # we ensure image is present in daemon.
 xpkg.build.provider-harbor: do.build.images
 
+# Pin the kind cluster name so integration_tests.sh and the build submodule
+# agree on which cluster to use. Parallel CI runs won't collide.
+KIND_CLUSTER_NAME ?= $(BUILD_REGISTRY)-inttests
+
+# Pin the Crossplane chart version so e2e runs are reproducible.
+CROSSPLANE_VERSION ?= 2.2.1
+
+-include build/makelib/controlplane.mk
+-include build/makelib/local.xpkg.mk
+
 fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
 	@make
@@ -60,6 +70,16 @@ test-integration: $(KIND) $(KUBECTL) $(CROSSPLANE_CLI) $(HELM3)
 	@$(INFO) running integration tests using kind $(KIND_VERSION)
 	@KIND_NODE_IMAGE_TAG=${KIND_NODE_IMAGE_TAG} $(ROOT_DIR)/cluster/local/integration_tests.sh || $(FAIL)
 	@$(OK) integration tests passed
+
+# E2E test timeout — override on the command line: make e2e.test E2E_TEST_TIMEOUT=60m
+E2E_TEST_TIMEOUT ?= 30m
+
+# Run the e2e Go test suite against a live Harbor instance.
+# Requires HARBOR_URL, HARBOR_USERNAME, and HARBOR_PASSWORD to be exported.
+e2e.test:
+	@$(INFO) running e2e tests
+	@go test -tags=e2e -timeout=$(E2E_TEST_TIMEOUT) ./internal/test/e2e/... || $(FAIL)
+	@$(OK) e2e tests passed
 
 # Update the submodules, such as the common build scripts.
 submodules:
@@ -104,7 +124,7 @@ dev-clean: $(KIND) $(KUBECTL)
 	@$(INFO) Deleting kind cluster
 	@$(KIND) delete cluster --name=$(PROJECT_NAME)-dev
 
-.PHONY: submodules fallthrough test-integration run dev dev-clean
+.PHONY: submodules fallthrough test-integration e2e.test run dev dev-clean
 
 # ====================================================================================
 # Special Targets
