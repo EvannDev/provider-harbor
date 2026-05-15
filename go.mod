@@ -9,12 +9,14 @@ tool github.com/crossplane/crossplane-tools/cmd/angryjet
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/crossplane/crossplane-runtime/v2 v2.0.0
+	github.com/google/go-cmp v0.7.0
 	github.com/mittwald/goharbor-client/v5 v5.6.5
 	github.com/pkg/errors v0.9.1
 	google.golang.org/grpc v1.74.2
 	k8s.io/apiextensions-apiserver v0.33.0
 	k8s.io/apimachinery v0.33.3
 	k8s.io/client-go v0.33.3
+	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
 	sigs.k8s.io/controller-runtime v0.21.0
 )
 
@@ -52,7 +54,6 @@ require (
 	github.com/goharbor/harbor/src v0.0.0-20231101063948-5cbb1b010a7b // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.6.9 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -104,7 +105,6 @@ require (
 	k8s.io/gengo/v2 v2.0.0-20250207200755-1244d31929d7 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
-	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e // indirect
 	sigs.k8s.io/controller-tools v0.18.0 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
