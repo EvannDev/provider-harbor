@@ -22,6 +22,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/EvannDev/provider-harbor/internal/controller/config"
+	"github.com/EvannDev/provider-harbor/internal/controller/iam/group"
 	robotaccountcontroller "github.com/EvannDev/provider-harbor/internal/controller/iam/robotaccount"
 	projectcontroller "github.com/EvannDev/provider-harbor/internal/controller/project/project"
 )
@@ -31,6 +32,7 @@ import (
 func SetupGated(mgr ctrl.Manager, opts controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		config.Setup,
+		group.SetupGated,
 		projectcontroller.SetupGated,
 		robotaccountcontroller.SetupGated,
 	} {

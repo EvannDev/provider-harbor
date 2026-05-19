@@ -1,0 +1,46 @@
+---
+# Internal group — managed entirely within Harbor, no external IdP required.
+apiVersion: iam.harbor.crossplane.io/v1alpha1
+kind: Group
+metadata:
+  name: my-internal-group
+  namespace: default
+  # crossplane.io/external-name is NOT set on creation: the controller searches
+  # Harbor by name after the first Create and sets it to the Harbor group ID.
+  # You may set it manually if the group already exists in Harbor.
+spec:
+  providerConfigRef:
+    name: default
+    kind: ProviderConfig
+  forProvider:
+    name: my-internal-group
+    type: internal
+---
+# OIDC group — maps a group claim from your OIDC identity provider into Harbor.
+apiVersion: iam.harbor.crossplane.io/v1alpha1
+kind: Group
+metadata:
+  name: my-oidc-group
+  namespace: default
+spec:
+  providerConfigRef:
+    name: default
+    kind: ProviderConfig
+  forProvider:
+    name: my-oidc-group # must match the group claim value from your OIDC IdP
+    type: oidc
+---
+# # LDAP group — linked to a distinguished name in your AD/LDAP directory.
+# apiVersion: iam.harbor.crossplane.io/v1alpha1
+# kind: Group
+# metadata:
+#   name: my-ldap-group
+#   namespace: default
+# spec:
+#   providerConfigRef:
+#     name: default
+#     kind: ProviderConfig
+#   forProvider:
+#     name: my-ldap-group
+#     type: ldap
+#     groupDn: "cn=developers,ou=groups,dc=example,dc=com"
