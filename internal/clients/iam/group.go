@@ -18,6 +18,7 @@ package iam
 
 import (
 	"context"
+	"strings"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/client/usergroup"
@@ -62,8 +63,11 @@ func NewGroupsClient(cfg common.Config) GroupsClient {
 }
 
 // IsGroupNotFound reports whether err indicates the group does not exist.
+// (if it contains the string "not found").
+// This is a disguting hack because this OFFICIAL HARBOR
+// SDK DOES NOT ALLOW TO RETURN THE ERROR CODE.
 func IsGroupNotFound(err error) bool {
-	return errors.Is(err, ErrGroupNotFound)
+	return err != nil && strings.Contains(err.Error(), "[GET /usergroups/{group_id}][404]")
 }
 
 // groupTypeToInt converts a string group type to its Harbor integer code.

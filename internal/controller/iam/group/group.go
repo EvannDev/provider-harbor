@@ -171,12 +171,25 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	groupResource.Status.SetConditions(xpv1.Creating())
 
-	_, err := c.client.CreateUserGroup(ctx, iam.GenerateUserGroupCreateOpts(&groupResource.Spec.ForProvider))
+	createdGroup, err := c.client.CreateUserGroup(ctx, iam.GenerateUserGroupCreateOpts(&groupResource.Spec.ForProvider))
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, errCreate)
 	}
 
-	// external name IS NOT set here because the API does not return it.
+	if !createdGroup.IsSuccess() {
+		return managed.ExternalCreation{}, errors.Errorf("failed to create Group in Harbor (status code non 2xx)")
+	}
+
+	searchedGroupID, groupExists, err := c.searchGroupByName(ctx, groupResource.Spec.ForProvider)
+	if err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, "cannot search for Group after creation, this will probably result in a failure loop")
+	}
+
+	if !groupExists {
+		return managed.ExternalCreation{}, errors.New("Group was not found after creation, this will probably result in a failure loop")
+	}
+
+	meta.SetExternalName(groupResource, strconv.FormatInt(searchedGroupID, 10))
 
 	return managed.ExternalCreation{
 		ConnectionDetails: managed.ConnectionDetails{},

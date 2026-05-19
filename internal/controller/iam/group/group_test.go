@@ -129,99 +129,22 @@ func TestObserve(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "no external name, search returns empty, resource does not exist",
-			client: &fakepkg.MockGroupsClient{
-				SearchUserGroupsFn: func(_ context.Context, _ *usergroup.SearchUserGroupsParams) (*usergroup.SearchUserGroupsOK, error) {
-					return &usergroup.SearchUserGroupsOK{
-						Payload: []*models.UserGroupSearchItem{},
-					}, nil
-				},
-			},
-			mg:   makeGroup("test", "", defaultSpec),
-			want: managed.ExternalObservation{ResourceExists: false},
+			name:   "empty external name returns resource does not exist",
+			client: &fakepkg.MockGroupsClient{},
+			mg:     makeGroup("test", "", defaultSpec),
+			want:   managed.ExternalObservation{ResourceExists: false},
 		},
 		{
-			name: "no external name, search API error returns error",
-			client: &fakepkg.MockGroupsClient{
-				SearchUserGroupsFn: func(_ context.Context, _ *usergroup.SearchUserGroupsParams) (*usergroup.SearchUserGroupsOK, error) {
-					return nil, errAPIFailure
-				},
-			},
-			mg:      makeGroup("test", "", defaultSpec),
-			wantErr: true,
+			name:   "non-numeric external name returns resource does not exist",
+			client: &fakepkg.MockGroupsClient{},
+			mg:     makeGroup("test", "not-a-number", defaultSpec),
+			want:   managed.ExternalObservation{ResourceExists: false},
 		},
 		{
-			name: "no external name, group found on first page, resource exists",
-			client: &fakepkg.MockGroupsClient{
-				SearchUserGroupsFn: func(_ context.Context, _ *usergroup.SearchUserGroupsParams) (*usergroup.SearchUserGroupsOK, error) {
-					return &usergroup.SearchUserGroupsOK{
-						XTotalCount: 1,
-						Payload: []*models.UserGroupSearchItem{
-							{ID: 42, GroupName: "mygroup"},
-						},
-					}, nil
-				},
-				GetUserGroupFn: func(_ context.Context, params *usergroup.GetUserGroupParams) (*usergroup.GetUserGroupOK, error) {
-					return &usergroup.GetUserGroupOK{
-						Payload: &models.UserGroup{
-							ID:        params.GroupID,
-							GroupName: "mygroup",
-							GroupType: 2,
-						},
-					}, nil
-				},
-			},
-			mg: makeGroup("test", "", defaultSpec),
-			want: managed.ExternalObservation{
-				ResourceExists:   true,
-				ResourceUpToDate: true,
-			},
-		},
-		{
-			name: "no external name, group found on second page, resource exists",
-			client: &fakepkg.MockGroupsClient{
-				SearchUserGroupsFn: func() func(_ context.Context, params *usergroup.SearchUserGroupsParams) (*usergroup.SearchUserGroupsOK, error) {
-					call := 0
-
-					return func(_ context.Context, _ *usergroup.SearchUserGroupsParams) (*usergroup.SearchUserGroupsOK, error) {
-						call++
-						if call == 1 {
-							// First page: 100 items, none match
-							items := make([]*models.UserGroupSearchItem, 100)
-							for i := range items {
-								items[i] = &models.UserGroupSearchItem{ID: int64(i + 1), GroupName: "other"}
-							}
-
-							return &usergroup.SearchUserGroupsOK{
-								XTotalCount: 101,
-								Payload:     items,
-							}, nil
-						}
-
-						// Second page: group found
-						return &usergroup.SearchUserGroupsOK{
-							XTotalCount: 101,
-							Payload: []*models.UserGroupSearchItem{
-								{ID: 99, GroupName: "mygroup"},
-							},
-						}, nil
-					}
-				}(),
-				GetUserGroupFn: func(_ context.Context, params *usergroup.GetUserGroupParams) (*usergroup.GetUserGroupOK, error) {
-					return &usergroup.GetUserGroupOK{
-						Payload: &models.UserGroup{
-							ID:        params.GroupID,
-							GroupName: "mygroup",
-							GroupType: 2,
-						},
-					}, nil
-				},
-			},
-			mg: makeGroup("test", "", defaultSpec),
-			want: managed.ExternalObservation{
-				ResourceExists:   true,
-				ResourceUpToDate: true,
-			},
+			name:   "cr name as external name returns resource does not exist",
+			client: &fakepkg.MockGroupsClient{},
+			mg:     makeGroup("test", "my-internal-group", defaultSpec),
+			want:   managed.ExternalObservation{ResourceExists: false},
 		},
 		{
 			name: "external name set, get succeeds, up to date",
@@ -262,10 +185,14 @@ func TestObserve(t *testing.T) {
 			},
 		},
 		{
-			name:    "external name set but invalid returns error",
-			client:  &fakepkg.MockGroupsClient{},
-			mg:      makeGroup("test", "not-a-number", defaultSpec),
-			wantErr: true,
+			name: "external name set, get returns 404, resource does not exist",
+			client: &fakepkg.MockGroupsClient{
+				GetUserGroupFn: func(_ context.Context, _ *usergroup.GetUserGroupParams) (*usergroup.GetUserGroupOK, error) {
+					return nil, errors.New("[GET /usergroups/{group_id}][404] getUserGroupNotFound")
+				},
+			},
+			mg:   makeGroup("test", "10", defaultSpec),
+			want: managed.ExternalObservation{ResourceExists: false},
 		},
 		{
 			name: "external name set, get API error returns error",
@@ -319,25 +246,17 @@ func TestCreate(t *testing.T) {
 	defaultSpec := v1alpha1.GroupParameters{Name: "mygroup", Type: "internal"}
 
 	tests := []struct {
-		name    string
-		client  *fakepkg.MockGroupsClient
-		mg      resource.Managed
-		wantErr bool
+		name           string
+		client         *fakepkg.MockGroupsClient
+		mg             resource.Managed
+		wantErr        bool
+		wantExternalID string
 	}{
 		{
 			name:    "wrong resource type returns error",
 			client:  &fakepkg.MockGroupsClient{},
 			mg:      &v1alpha1.RobotAccount{},
 			wantErr: true,
-		},
-		{
-			name: "create succeeds returns empty connection details",
-			client: &fakepkg.MockGroupsClient{
-				CreateUserGroupFn: func(_ context.Context, _ *usergroup.CreateUserGroupParams) (*usergroup.CreateUserGroupCreated, error) {
-					return &usergroup.CreateUserGroupCreated{}, nil
-				},
-			},
-			mg: makeGroup("test", "", defaultSpec),
 		},
 		{
 			name: "create API error returns error",
@@ -348,6 +267,52 @@ func TestCreate(t *testing.T) {
 			},
 			mg:      makeGroup("test", "", defaultSpec),
 			wantErr: true,
+		},
+		{
+			name: "create succeeds but search API error returns error",
+			client: &fakepkg.MockGroupsClient{
+				CreateUserGroupFn: func(_ context.Context, _ *usergroup.CreateUserGroupParams) (*usergroup.CreateUserGroupCreated, error) {
+					return &usergroup.CreateUserGroupCreated{}, nil
+				},
+				SearchUserGroupsFn: func(_ context.Context, _ *usergroup.SearchUserGroupsParams) (*usergroup.SearchUserGroupsOK, error) {
+					return nil, errAPIFailure
+				},
+			},
+			mg:      makeGroup("test", "", defaultSpec),
+			wantErr: true,
+		},
+		{
+			name: "create succeeds but group not found in search returns error",
+			client: &fakepkg.MockGroupsClient{
+				CreateUserGroupFn: func(_ context.Context, _ *usergroup.CreateUserGroupParams) (*usergroup.CreateUserGroupCreated, error) {
+					return &usergroup.CreateUserGroupCreated{}, nil
+				},
+				SearchUserGroupsFn: func(_ context.Context, _ *usergroup.SearchUserGroupsParams) (*usergroup.SearchUserGroupsOK, error) {
+					return &usergroup.SearchUserGroupsOK{
+						Payload: []*models.UserGroupSearchItem{},
+					}, nil
+				},
+			},
+			mg:      makeGroup("test", "", defaultSpec),
+			wantErr: true,
+		},
+		{
+			name: "create succeeds and search finds group, external name set",
+			client: &fakepkg.MockGroupsClient{
+				CreateUserGroupFn: func(_ context.Context, _ *usergroup.CreateUserGroupParams) (*usergroup.CreateUserGroupCreated, error) {
+					return &usergroup.CreateUserGroupCreated{}, nil
+				},
+				SearchUserGroupsFn: func(_ context.Context, _ *usergroup.SearchUserGroupsParams) (*usergroup.SearchUserGroupsOK, error) {
+					return &usergroup.SearchUserGroupsOK{
+						XTotalCount: 1,
+						Payload: []*models.UserGroupSearchItem{
+							{ID: 42, GroupName: "mygroup"},
+						},
+					}, nil
+				},
+			},
+			mg:             makeGroup("test", "", defaultSpec),
+			wantExternalID: "42",
 		},
 	}
 
@@ -375,6 +340,14 @@ func TestCreate(t *testing.T) {
 
 			if creation.ConnectionDetails == nil {
 				t.Error("Create() ConnectionDetails is nil, want empty map")
+			}
+
+			if tc.wantExternalID != "" {
+				if g, ok := tc.mg.(*v1alpha1.Group); ok {
+					if got := meta.GetExternalName(g); got != tc.wantExternalID {
+						t.Errorf("Create() external name = %q, want %q", got, tc.wantExternalID)
+					}
+				}
 			}
 		})
 	}

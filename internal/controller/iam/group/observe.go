@@ -18,11 +18,9 @@ package group
 
 import (
 	"context"
-	"strconv"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 
-	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/pkg/errors"
@@ -44,36 +42,22 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotGroup)
 	}
 
-	externalName := meta.GetExternalName(groupResource)
-	if externalName == "" {
-		// Try a search by name; this might be the first observation after creation
-		// where the external name has not been set yet,
-		// but we can find the group by its name.
-		// WARNING: This will adopt the first group with a name that matches (name has a unique constraint)
-		groupId, groupExists, err := c.searchGroupByName(ctx, groupResource.Spec.ForProvider)
-		if err != nil {
-			return managed.ExternalObservation{}, errors.Wrap(err, errObserve)
-		}
+	groupID, err := getGroupID(groupResource)
+	if err != nil { //nolint:nilerr // non-numeric external name means resource is not yet created; trigger Create
+		return managed.ExternalObservation{
+			ResourceExists: false,
+		}, nil
+	}
 
-		if !groupExists {
+	// Fetch the group using get API.
+	getResponse, err := c.client.GetUserGroup(ctx, iam.GenerateUserGroupGetOpts(groupID))
+	if err != nil {
+		if iam.IsGroupNotFound(err) {
 			return managed.ExternalObservation{
 				ResourceExists: false,
 			}, nil
 		}
 
-		// If the group is found in search, set external name to the group ID for future direct retrieval.
-		externalName = strconv.FormatInt(groupId, 10)
-		meta.SetExternalName(groupResource, externalName)
-	}
-
-	groupId, err := strconv.ParseInt(externalName, 10, 64)
-	if err != nil {
-		return managed.ExternalObservation{}, errors.Wrap(err, "cannot parse external name as group ID")
-	}
-
-	// Fetch the group using get API.
-	getResponse, err := c.client.GetUserGroup(ctx, iam.GenerateUserGroupGetOpts(groupId))
-	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errObserve)
 	}
 

@@ -17,6 +17,7 @@ limitations under the License.
 package iam
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/models"
@@ -357,12 +358,41 @@ func TestGroupTypeConversions(t *testing.T) {
 func TestIsGroupNotFound(t *testing.T) {
 	t.Parallel()
 
-	if !IsGroupNotFound(ErrGroupNotFound) {
-		t.Error("IsGroupNotFound(ErrGroupNotFound) = false, want true")
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "nil returns false",
+			err:  nil,
+			want: false,
+		},
+		{
+			name: "unrelated error returns false",
+			err:  errors.New("some other error"),
+			want: false,
+		},
+		{
+			name: "ErrGroupNotFound sentinel returns false (does not contain 404 pattern)",
+			err:  ErrGroupNotFound,
+			want: false,
+		},
+		{
+			name: "SDK 404 error pattern returns true",
+			err:  errors.New("[GET /usergroups/{group_id}][404] getUserGroupNotFound"),
+			want: true,
+		},
 	}
 
-	if IsGroupNotFound(nil) {
-		t.Error("IsGroupNotFound(nil) = true, want false")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := IsGroupNotFound(tc.err); got != tc.want {
+				t.Errorf("IsGroupNotFound() = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 
