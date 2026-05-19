@@ -26,7 +26,6 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	projectv1alpha1 "github.com/EvannDev/provider-harbor/apis/project/v1alpha1"
 	"github.com/EvannDev/provider-harbor/internal/test/e2e"
@@ -66,7 +65,7 @@ func TestProjectCRUD(t *testing.T) {
 				},
 			},
 			ForProvider: projectv1alpha1.ProjectParameters{
-				StorageLimit: ptr.To(int64(-1)),
+				StorageLimit: new(int64(-1)),
 			},
 		},
 	}
@@ -93,7 +92,7 @@ func TestProjectCRUD(t *testing.T) {
 	}
 
 	// Update: set a 1 GiB storage limit.
-	proj.Spec.ForProvider.StorageLimit = ptr.To(int64(1073741824))
+	proj.Spec.ForProvider.StorageLimit = new(int64(1073741824))
 	f.Update(t, proj)
 
 	if err := f.WaitForReady(context.Background(), proj, defaultTimeout); err != nil {

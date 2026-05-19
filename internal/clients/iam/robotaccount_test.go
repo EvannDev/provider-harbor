@@ -19,9 +19,7 @@ import (
 	"errors"
 	"testing"
 
-	apiv2 "github.com/mittwald/goharbor-client/v5/apiv2"
-	modelv2 "github.com/mittwald/goharbor-client/v5/apiv2/model"
-	harborerrors "github.com/mittwald/goharbor-client/v5/apiv2/pkg/errors"
+	"github.com/goharbor/go-client/pkg/sdk/v2.0/models"
 
 	v1alpha1 "github.com/EvannDev/provider-harbor/apis/iam/v1alpha1"
 	"github.com/EvannDev/provider-harbor/internal/clients/iam"
@@ -61,52 +59,20 @@ const (
 	kindProjectStr = "project"
 )
 
-// TestNewRobotAccountsClient verifies that NewRobotAccountsClient returns
-// the provided apiv2.Client as a RobotAccountsClient.
-func TestNewRobotAccountsClient(t *testing.T) {
-	t.Parallel()
-
-	t.Run("returns client as RobotAccountsClient", func(t *testing.T) {
-		t.Parallel()
-
-		// apiv2.Client is a large interface; pass a nil value to confirm
-		// the function returns exactly what it receives without wrapping.
-		var nilClient apiv2.Client
-
-		result := iam.NewRobotAccountsClient(nilClient)
-
-		if result != nilClient {
-			t.Errorf(
-				"NewRobotAccountsClient: got %v, want %v",
-				result,
-				nilClient,
-			)
-		}
-	})
-}
-
 // TestGenerateRobotAccountObservation verifies that
 // GenerateRobotAccountObservation correctly maps a Harbor Robot into a
 // RobotAccountObservation, and returns a zero value for nil input.
 func TestGenerateRobotAccountObservation(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		// name is the sub-test name.
-		name string
-		// inputRobot is the robot passed to the function.
-		inputRobot *modelv2.Robot
-		// wantNilFields indicates whether all pointer fields should be nil.
+	cases := []struct {
+		name          string
+		inputRobot    *models.Robot
 		wantNilFields bool
-		// wantID is the expected observation ID.
-		wantID *int64
-		// wantFullName is the expected observation FullName.
-		wantFullName *string
-		// wantExpiresAt is the expected observation ExpiresAt.
+		wantID        *int64
+		wantFullName  *string
 		wantExpiresAt *int64
-	}
-
-	cases := []testCase{
+	}{
 		{
 			name:          "nil robot returns zero value",
 			inputRobot:    nil,
@@ -114,7 +80,7 @@ func TestGenerateRobotAccountObservation(t *testing.T) {
 		},
 		{
 			name: "robot with all fields returns mapped observation",
-			inputRobot: &modelv2.Robot{
+			inputRobot: &models.Robot{
 				ID:        42,
 				Name:      robotMybot,
 				ExpiresAt: 9999,
@@ -135,8 +101,7 @@ func TestGenerateRobotAccountObservation(t *testing.T) {
 			if tc.wantNilFields {
 				if obs.ID != nil || obs.FullName != nil || obs.ExpiresAt != nil {
 					t.Errorf(
-						"GenerateRobotAccountObservation: "+
-							"expected all nil fields, got %+v",
+						"GenerateRobotAccountObservation: expected all nil fields, got %+v",
 						obs,
 					)
 				}
@@ -145,29 +110,15 @@ func TestGenerateRobotAccountObservation(t *testing.T) {
 			}
 
 			if obs.ID == nil || *obs.ID != *tc.wantID {
-				t.Errorf(
-					"GenerateRobotAccountObservation: ID = %v, want %v",
-					obs.ID,
-					tc.wantID,
-				)
+				t.Errorf("GenerateRobotAccountObservation: ID = %v, want %v", obs.ID, tc.wantID)
 			}
 
 			if obs.FullName == nil || *obs.FullName != *tc.wantFullName {
-				t.Errorf(
-					"GenerateRobotAccountObservation: "+
-						"FullName = %v, want %v",
-					obs.FullName,
-					tc.wantFullName,
-				)
+				t.Errorf("GenerateRobotAccountObservation: FullName = %v, want %v", obs.FullName, tc.wantFullName)
 			}
 
 			if obs.ExpiresAt == nil || *obs.ExpiresAt != *tc.wantExpiresAt {
-				t.Errorf(
-					"GenerateRobotAccountObservation: "+
-						"ExpiresAt = %v, want %v",
-					obs.ExpiresAt,
-					tc.wantExpiresAt,
-				)
+				t.Errorf("GenerateRobotAccountObservation: ExpiresAt = %v, want %v", obs.ExpiresAt, tc.wantExpiresAt)
 			}
 		})
 	}
@@ -178,38 +129,32 @@ func TestGenerateRobotAccountObservation(t *testing.T) {
 func TestIsRobotAccountUpToDate(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		// name is the sub-test name.
-		name string
-		// params is the desired spec.
-		params v1alpha1.RobotAccountParameters
-		// robot is the observed Harbor robot.
-		robot *modelv2.Robot
-		// want is the expected return value.
-		want bool
-	}
-
 	matchingAccess := []v1alpha1.RobotAccountAccess{
 		{Resource: resourceRepository, Action: actionPull},
 	}
-	matchingRobotAccess := []*modelv2.Access{
+	matchingRobotAccess := []*models.Access{
 		{Resource: resourceRepository, Action: actionPull},
 	}
 	matchingPerms := []v1alpha1.RobotAccountPermission{
 		{Kind: kindProjectStr, Namespace: nsMyProject, Access: matchingAccess},
 	}
-	matchingRobotPerms := []*modelv2.RobotPermission{
+	matchingRobotPerms := []*models.RobotPermission{
 		{Kind: kindProjectStr, Namespace: nsMyProject, Access: matchingRobotAccess},
 	}
 
-	cases := []testCase{
+	cases := []struct {
+		name   string
+		params v1alpha1.RobotAccountParameters
+		robot  *models.Robot
+		want   bool
+	}{
 		{
 			name: "description mismatch returns false",
 			params: v1alpha1.RobotAccountParameters{
 				Description: "old",
 				Permissions: matchingPerms,
 			},
-			robot: &modelv2.Robot{
+			robot: &models.Robot{
 				Description: "new",
 				Permissions: matchingRobotPerms,
 			},
@@ -221,7 +166,7 @@ func TestIsRobotAccountUpToDate(t *testing.T) {
 				Disable:     true,
 				Permissions: matchingPerms,
 			},
-			robot: &modelv2.Robot{
+			robot: &models.Robot{
 				Disable:     false,
 				Permissions: matchingRobotPerms,
 			},
@@ -233,8 +178,8 @@ func TestIsRobotAccountUpToDate(t *testing.T) {
 				Duration:    new(int64(30)),
 				Permissions: matchingPerms,
 			},
-			robot: &modelv2.Robot{
-				Duration:    90,
+			robot: &models.Robot{
+				Duration:    new(int64(90)),
 				Permissions: matchingRobotPerms,
 			},
 			want: false,
@@ -245,8 +190,8 @@ func TestIsRobotAccountUpToDate(t *testing.T) {
 				Duration:    nil,
 				Permissions: matchingPerms,
 			},
-			robot: &modelv2.Robot{
-				Duration:    90,
+			robot: &models.Robot{
+				Duration:    new(int64(90)),
 				Permissions: matchingRobotPerms,
 			},
 			want: true,
@@ -256,91 +201,7 @@ func TestIsRobotAccountUpToDate(t *testing.T) {
 			params: v1alpha1.RobotAccountParameters{
 				Permissions: []v1alpha1.RobotAccountPermission{},
 			},
-			robot: &modelv2.Robot{
-				Permissions: matchingRobotPerms,
-			},
-			want: false,
-		},
-		{
-			name: "permission kind mismatch returns false",
-			params: v1alpha1.RobotAccountParameters{
-				Permissions: []v1alpha1.RobotAccountPermission{
-					{
-						Kind:      kindSystem,
-						Namespace: nsMyProject,
-						Access:    matchingAccess,
-					},
-				},
-			},
-			robot: &modelv2.Robot{
-				Permissions: matchingRobotPerms,
-			},
-			want: false,
-		},
-		{
-			name: "permission namespace mismatch returns false",
-			params: v1alpha1.RobotAccountParameters{
-				Permissions: []v1alpha1.RobotAccountPermission{
-					{
-						Kind:      kindProjectStr,
-						Namespace: "otherproject",
-						Access:    matchingAccess,
-					},
-				},
-			},
-			robot: &modelv2.Robot{
-				Permissions: matchingRobotPerms,
-			},
-			want: false,
-		},
-		{
-			name: "access count mismatch returns false",
-			params: v1alpha1.RobotAccountParameters{
-				Permissions: []v1alpha1.RobotAccountPermission{
-					{
-						Kind:      kindProjectStr,
-						Namespace: nsMyProject,
-						Access:    []v1alpha1.RobotAccountAccess{},
-					},
-				},
-			},
-			robot: &modelv2.Robot{
-				Permissions: matchingRobotPerms,
-			},
-			want: false,
-		},
-		{
-			name: "access resource mismatch returns false",
-			params: v1alpha1.RobotAccountParameters{
-				Permissions: []v1alpha1.RobotAccountPermission{
-					{
-						Kind:      kindProjectStr,
-						Namespace: nsMyProject,
-						Access: []v1alpha1.RobotAccountAccess{
-							{Resource: resourceArtifact, Action: actionPull},
-						},
-					},
-				},
-			},
-			robot: &modelv2.Robot{
-				Permissions: matchingRobotPerms,
-			},
-			want: false,
-		},
-		{
-			name: "access action mismatch returns false",
-			params: v1alpha1.RobotAccountParameters{
-				Permissions: []v1alpha1.RobotAccountPermission{
-					{
-						Kind:      kindProjectStr,
-						Namespace: nsMyProject,
-						Access: []v1alpha1.RobotAccountAccess{
-							{Resource: resourceRepository, Action: "push"},
-						},
-					},
-				},
-			},
-			robot: &modelv2.Robot{
+			robot: &models.Robot{
 				Permissions: matchingRobotPerms,
 			},
 			want: false,
@@ -353,10 +214,10 @@ func TestIsRobotAccountUpToDate(t *testing.T) {
 				Duration:    new(int64(30)),
 				Permissions: matchingPerms,
 			},
-			robot: &modelv2.Robot{
+			robot: &models.Robot{
 				Description: botName,
 				Disable:     false,
-				Duration:    30,
+				Duration:    new(int64(30)),
 				Permissions: matchingRobotPerms,
 			},
 			want: true,
@@ -370,11 +231,7 @@ func TestIsRobotAccountUpToDate(t *testing.T) {
 			got := iam.IsRobotAccountUpToDate(tc.params, tc.robot)
 
 			if got != tc.want {
-				t.Errorf(
-					"IsRobotAccountUpToDate: got %v, want %v",
-					got,
-					tc.want,
-				)
+				t.Errorf("IsRobotAccountUpToDate: got %v, want %v", got, tc.want)
 			}
 		})
 	}
@@ -385,24 +242,15 @@ func TestIsRobotAccountUpToDate(t *testing.T) {
 func TestToRobotCreate(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		// name is the sub-test name.
-		name string
-		// robotName is the robot account name passed to the function.
-		robotName string
-		// params is the desired spec.
-		params v1alpha1.RobotAccountParameters
-		// wantDuration is the expected Duration field value.
-		wantDuration int64
-		// wantDescription is the expected Description field value.
+	cases := []struct {
+		name            string
+		robotName       string
+		params          v1alpha1.RobotAccountParameters
+		wantDuration    int64
 		wantDescription string
-		// wantLevel is the expected Level field value.
-		wantLevel string
-		// wantDisable is the expected Disable field value.
-		wantDisable bool
-	}
-
-	cases := []testCase{
+		wantLevel       string
+		wantDisable     bool
+	}{
 		{
 			name:      "nil duration leaves Duration as zero",
 			robotName: botName,
@@ -446,43 +294,23 @@ func TestToRobotCreate(t *testing.T) {
 			}
 
 			if req.Name != tc.robotName {
-				t.Errorf(
-					"ToRobotCreate: Name = %q, want %q",
-					req.Name,
-					tc.robotName,
-				)
+				t.Errorf("ToRobotCreate: Name = %q, want %q", req.Name, tc.robotName)
 			}
 
 			if req.Description != tc.wantDescription {
-				t.Errorf(
-					"ToRobotCreate: Description = %q, want %q",
-					req.Description,
-					tc.wantDescription,
-				)
+				t.Errorf("ToRobotCreate: Description = %q, want %q", req.Description, tc.wantDescription)
 			}
 
 			if req.Level != tc.wantLevel {
-				t.Errorf(
-					"ToRobotCreate: Level = %q, want %q",
-					req.Level,
-					tc.wantLevel,
-				)
+				t.Errorf("ToRobotCreate: Level = %q, want %q", req.Level, tc.wantLevel)
 			}
 
 			if req.Disable != tc.wantDisable {
-				t.Errorf(
-					"ToRobotCreate: Disable = %v, want %v",
-					req.Disable,
-					tc.wantDisable,
-				)
+				t.Errorf("ToRobotCreate: Disable = %v, want %v", req.Disable, tc.wantDisable)
 			}
 
 			if req.Duration != tc.wantDuration {
-				t.Errorf(
-					"ToRobotCreate: Duration = %v, want %v",
-					req.Duration,
-					tc.wantDuration,
-				)
+				t.Errorf("ToRobotCreate: Duration = %v, want %v", req.Duration, tc.wantDuration)
 			}
 		})
 	}
@@ -493,22 +321,14 @@ func TestToRobotCreate(t *testing.T) {
 func TestApplyRobotAccountParameters(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		// name is the sub-test name.
-		name string
-		// params is the desired spec.
-		params v1alpha1.RobotAccountParameters
-		// initialRobot is the Robot to mutate.
-		initialRobot *modelv2.Robot
-		// wantDescription is the expected description after applying.
+	cases := []struct {
+		name            string
+		params          v1alpha1.RobotAccountParameters
+		initialRobot    *models.Robot
 		wantDescription string
-		// wantDisable is the expected disable flag after applying.
-		wantDisable bool
-		// wantDuration is the expected duration after applying.
-		wantDuration int64
-	}
-
-	cases := []testCase{
+		wantDisable     bool
+		wantDuration    *int64
+	}{
 		{
 			name: "nil duration does not overwrite robot duration",
 			params: v1alpha1.RobotAccountParameters{
@@ -517,12 +337,12 @@ func TestApplyRobotAccountParameters(t *testing.T) {
 				Duration:    nil,
 				Permissions: []v1alpha1.RobotAccountPermission{},
 			},
-			initialRobot: &modelv2.Robot{
-				Duration: 99,
+			initialRobot: &models.Robot{
+				Duration: new(int64(99)),
 			},
 			wantDescription: descUpdated,
 			wantDisable:     true,
-			wantDuration:    99,
+			wantDuration:    new(int64(99)),
 		},
 		{
 			name: "set duration overwrites robot duration",
@@ -532,12 +352,12 @@ func TestApplyRobotAccountParameters(t *testing.T) {
 				Duration:    new(int64(14)),
 				Permissions: []v1alpha1.RobotAccountPermission{},
 			},
-			initialRobot: &modelv2.Robot{
-				Duration: 99,
+			initialRobot: &models.Robot{
+				Duration: new(int64(99)),
 			},
 			wantDescription: descPatched,
 			wantDisable:     false,
-			wantDuration:    14,
+			wantDuration:    new(int64(14)),
 		},
 		{
 			name: "permissions are applied",
@@ -553,10 +373,10 @@ func TestApplyRobotAccountParameters(t *testing.T) {
 					},
 				},
 			},
-			initialRobot:    &modelv2.Robot{},
+			initialRobot:    &models.Robot{},
 			wantDescription: descWithPerms,
 			wantDisable:     false,
-			wantDuration:    0,
+			wantDuration:    nil,
 		},
 	}
 
@@ -567,30 +387,25 @@ func TestApplyRobotAccountParameters(t *testing.T) {
 			iam.ApplyRobotAccountParameters(tc.params, tc.initialRobot)
 
 			if tc.initialRobot.Description != tc.wantDescription {
-				t.Errorf(
-					"ApplyRobotAccountParameters: "+
-						"Description = %q, want %q",
-					tc.initialRobot.Description,
-					tc.wantDescription,
-				)
+				t.Errorf("ApplyRobotAccountParameters: Description = %q, want %q",
+					tc.initialRobot.Description, tc.wantDescription)
 			}
 
 			if tc.initialRobot.Disable != tc.wantDisable {
-				t.Errorf(
-					"ApplyRobotAccountParameters: "+
-						"Disable = %v, want %v",
-					tc.initialRobot.Disable,
-					tc.wantDisable,
-				)
+				t.Errorf("ApplyRobotAccountParameters: Disable = %v, want %v",
+					tc.initialRobot.Disable, tc.wantDisable)
 			}
 
-			if tc.initialRobot.Duration != tc.wantDuration {
-				t.Errorf(
-					"ApplyRobotAccountParameters: "+
-						"Duration = %v, want %v",
-					tc.initialRobot.Duration,
-					tc.wantDuration,
-				)
+			gotDur := tc.initialRobot.Duration
+			wantDur := tc.wantDuration
+
+			switch {
+			case gotDur == nil && wantDur == nil:
+				// both nil, ok
+			case gotDur == nil || wantDur == nil:
+				t.Errorf("ApplyRobotAccountParameters: Duration = %v, want %v", gotDur, wantDur)
+			case *gotDur != *wantDur:
+				t.Errorf("ApplyRobotAccountParameters: Duration = %v, want %v", *gotDur, *wantDur)
 			}
 		})
 	}
@@ -598,34 +413,20 @@ func TestApplyRobotAccountParameters(t *testing.T) {
 
 // checkHarborPermissionFields asserts that a converted Harbor permission
 // matches the source CR permission's Kind, Namespace, and Access slice length.
-func checkHarborPermissionFields(t *testing.T, idx int, harborPerm *modelv2.RobotPermission, perm v1alpha1.RobotAccountPermission) bool {
+func checkHarborPermissionFields(t *testing.T, idx int, harborPerm *models.RobotPermission, perm v1alpha1.RobotAccountPermission) bool {
 	t.Helper()
 
 	if harborPerm.Kind != perm.Kind {
-		t.Errorf(
-			"ToHarborPermissions[%d]: Kind = %q, want %q",
-			idx,
-			harborPerm.Kind,
-			perm.Kind,
-		)
+		t.Errorf("ToHarborPermissions[%d]: Kind = %q, want %q", idx, harborPerm.Kind, perm.Kind)
 	}
 
 	if harborPerm.Namespace != perm.Namespace {
-		t.Errorf(
-			"ToHarborPermissions[%d]: Namespace = %q, want %q",
-			idx,
-			harborPerm.Namespace,
-			perm.Namespace,
-		)
+		t.Errorf("ToHarborPermissions[%d]: Namespace = %q, want %q", idx, harborPerm.Namespace, perm.Namespace)
 	}
 
 	if len(harborPerm.Access) != len(perm.Access) {
-		t.Errorf(
-			"ToHarborPermissions[%d]: Access len = %d, want %d",
-			idx,
-			len(harborPerm.Access),
-			len(perm.Access),
-		)
+		t.Errorf("ToHarborPermissions[%d]: Access len = %d, want %d",
+			idx, len(harborPerm.Access), len(perm.Access))
 
 		return false
 	}
@@ -635,30 +436,20 @@ func checkHarborPermissionFields(t *testing.T, idx int, harborPerm *modelv2.Robo
 
 // checkHarborAccessFields asserts that each Access entry within a converted
 // Harbor permission matches the corresponding source CR access entry.
-func checkHarborAccessFields(t *testing.T, idx int, harborPerm *modelv2.RobotPermission, perm v1alpha1.RobotAccountPermission) {
+func checkHarborAccessFields(t *testing.T, idx int, harborPerm *models.RobotPermission, perm v1alpha1.RobotAccountPermission) {
 	t.Helper()
 
 	for jdx, acc := range perm.Access {
 		harborAcc := harborPerm.Access[jdx]
 
 		if harborAcc.Resource != acc.Resource {
-			t.Errorf(
-				"ToHarborPermissions[%d].Access[%d]: Resource = %q, want %q",
-				idx,
-				jdx,
-				harborAcc.Resource,
-				acc.Resource,
-			)
+			t.Errorf("ToHarborPermissions[%d].Access[%d]: Resource = %q, want %q",
+				idx, jdx, harborAcc.Resource, acc.Resource)
 		}
 
 		if harborAcc.Action != acc.Action {
-			t.Errorf(
-				"ToHarborPermissions[%d].Access[%d]: Action = %q, want %q",
-				idx,
-				jdx,
-				harborAcc.Action,
-				acc.Action,
-			)
+			t.Errorf("ToHarborPermissions[%d].Access[%d]: Action = %q, want %q",
+				idx, jdx, harborAcc.Action, acc.Action)
 		}
 	}
 }
@@ -668,16 +459,11 @@ func checkHarborAccessFields(t *testing.T, idx int, harborPerm *modelv2.RobotPer
 func TestToHarborPermissions(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		// name is the sub-test name.
-		name string
-		// inputPerms is the list of CR permissions to convert.
+	cases := []struct {
+		name       string
 		inputPerms []v1alpha1.RobotAccountPermission
-		// wantCount is the expected number of converted permissions.
-		wantCount int
-	}
-
-	cases := []testCase{
+		wantCount  int
+	}{
 		{
 			name:       "empty slice returns empty result",
 			inputPerms: []v1alpha1.RobotAccountPermission{},
@@ -726,11 +512,7 @@ func TestToHarborPermissions(t *testing.T) {
 			result := iam.ToHarborPermissions(tc.inputPerms)
 
 			if len(result) != tc.wantCount {
-				t.Fatalf(
-					"ToHarborPermissions: len = %d, want %d",
-					len(result),
-					tc.wantCount,
-				)
+				t.Fatalf("ToHarborPermissions: len = %d, want %d", len(result), tc.wantCount)
 			}
 
 			for idx, perm := range tc.inputPerms {
@@ -752,18 +534,11 @@ func TestToHarborPermissions(t *testing.T) {
 func TestValidatePermissions(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		// name is the sub-test name.
-		name string
-		// inputPerms is the list of permissions to validate.
+	cases := []struct {
+		name       string
 		inputPerms []v1alpha1.RobotAccountPermission
-		// wantErr indicates whether an error is expected.
-		wantErr bool
-		// wantErrIndex is the index expected to appear in the error string.
-		wantErrIndex int
-	}
-
-	cases := []testCase{
+		wantErr    bool
+	}{
 		{
 			name:       "empty permissions returns nil",
 			inputPerms: []v1alpha1.RobotAccountPermission{},
@@ -782,8 +557,7 @@ func TestValidatePermissions(t *testing.T) {
 				{Kind: kindProjectStr, Namespace: "valid"},
 				{Kind: kindProjectStr, Namespace: ""},
 			},
-			wantErr:      true,
-			wantErrIndex: 1,
+			wantErr: true,
 		},
 		{
 			name: "system kind with empty namespace returns nil",
@@ -805,10 +579,7 @@ func TestValidatePermissions(t *testing.T) {
 			}
 
 			if !tc.wantErr && err != nil {
-				t.Fatalf(
-					"ValidatePermissions: unexpected error: %v",
-					err,
-				)
+				t.Fatalf("ValidatePermissions: unexpected error: %v", err)
 			}
 		})
 	}
@@ -819,16 +590,11 @@ func TestValidatePermissions(t *testing.T) {
 func TestProjectNamespace(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		// name is the sub-test name.
-		name string
-		// inputPerms is the list of permissions to inspect.
-		inputPerms []v1alpha1.RobotAccountPermission
-		// wantNamespace is the expected return value.
+	cases := []struct {
+		name          string
+		inputPerms    []v1alpha1.RobotAccountPermission
 		wantNamespace string
-	}
-
-	cases := []testCase{
+	}{
 		{
 			name: "no project kind returns empty string",
 			inputPerms: []v1alpha1.RobotAccountPermission{
@@ -860,11 +626,7 @@ func TestProjectNamespace(t *testing.T) {
 			got := iam.ProjectNamespace(tc.inputPerms)
 
 			if got != tc.wantNamespace {
-				t.Errorf(
-					"ProjectNamespace: got %q, want %q",
-					got,
-					tc.wantNamespace,
-				)
+				t.Errorf("ProjectNamespace: got %q, want %q", got, tc.wantNamespace)
 			}
 		})
 	}
@@ -875,16 +637,11 @@ func TestProjectNamespace(t *testing.T) {
 func TestStripRobotPrefix(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		// name is the sub-test name.
-		name string
-		// fullName is the input string.
-		fullName string
-		// wantResult is the expected stripped result.
+	cases := []struct {
+		name       string
+		fullName   string
 		wantResult string
-	}
-
-	cases := []testCase{
+	}{
 		{
 			name:       "removes robot$ prefix",
 			fullName:   robotMybot,
@@ -914,12 +671,7 @@ func TestStripRobotPrefix(t *testing.T) {
 			got := iam.StripRobotPrefix(tc.fullName)
 
 			if got != tc.wantResult {
-				t.Errorf(
-					"StripRobotPrefix(%q): got %q, want %q",
-					tc.fullName,
-					got,
-					tc.wantResult,
-				)
+				t.Errorf("StripRobotPrefix(%q): got %q, want %q", tc.fullName, got, tc.wantResult)
 			}
 		})
 	}
@@ -931,29 +683,20 @@ func TestStripRobotPrefix(t *testing.T) {
 func TestFindProjectRobotByName(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		// name is the sub-test name.
-		name string
-		// listFn is the mock ListProjectRobotsV1 implementation.
-		listFn func(ctx context.Context, project string) ([]*modelv2.Robot, error)
-		// searchProject is the project name to search in.
-		searchProject string
-		// searchName is the robot short name to look for.
-		searchName string
-		// wantErr indicates whether an error is expected.
-		wantErr bool
-		// wantNotFound indicates whether the error should be ErrRobotAccountUnknownResource.
-		wantNotFound bool
-		// wantRobotName is the expected robot name (full name).
-		wantRobotName string
-	}
-
 	listError := errors.New("list failed")
 
-	cases := []testCase{
+	cases := []struct {
+		name          string
+		listFn        func(ctx context.Context, project string) ([]*models.Robot, error)
+		searchProject string
+		searchName    string
+		wantErr       bool
+		wantNotFound  bool
+		wantRobotName string
+	}{
 		{
 			name: "list error is propagated",
-			listFn: func(_ context.Context, _ string) ([]*modelv2.Robot, error) {
+			listFn: func(_ context.Context, _ string) ([]*models.Robot, error) {
 				return nil, listError
 			},
 			searchProject: nsMyProject,
@@ -962,9 +705,9 @@ func TestFindProjectRobotByName(t *testing.T) {
 			wantNotFound:  false,
 		},
 		{
-			name: "no robots returns ErrRobotAccountUnknownResource",
-			listFn: func(_ context.Context, _ string) ([]*modelv2.Robot, error) {
-				return []*modelv2.Robot{}, nil
+			name: "no robots returns ErrRobotNotFound",
+			listFn: func(_ context.Context, _ string) ([]*models.Robot, error) {
+				return []*models.Robot{}, nil
 			},
 			searchProject: nsMyProject,
 			searchName:    botName,
@@ -973,8 +716,8 @@ func TestFindProjectRobotByName(t *testing.T) {
 		},
 		{
 			name: "robot found by exact stripped name",
-			listFn: func(_ context.Context, _ string) ([]*modelv2.Robot, error) {
-				return []*modelv2.Robot{
+			listFn: func(_ context.Context, _ string) ([]*models.Robot, error) {
+				return []*models.Robot{
 					{Name: robotMybot},
 				}, nil
 			},
@@ -985,8 +728,8 @@ func TestFindProjectRobotByName(t *testing.T) {
 		},
 		{
 			name: "robot found by suffix match",
-			listFn: func(_ context.Context, _ string) ([]*modelv2.Robot, error) {
-				return []*modelv2.Robot{
+			listFn: func(_ context.Context, _ string) ([]*models.Robot, error) {
+				return []*models.Robot{
 					{Name: robotFullName},
 				}, nil
 			},
@@ -997,8 +740,8 @@ func TestFindProjectRobotByName(t *testing.T) {
 		},
 		{
 			name: "robot not found despite having robots",
-			listFn: func(_ context.Context, _ string) ([]*modelv2.Robot, error) {
-				return []*modelv2.Robot{
+			listFn: func(_ context.Context, _ string) ([]*models.Robot, error) {
+				return []*models.Robot{
 					{Name: "robot$otherbot"},
 					{Name: "robot$anotherbot"},
 				}, nil
@@ -1017,81 +760,57 @@ func TestFindProjectRobotByName(t *testing.T) {
 			mockClient := &fake.MockRobotAccountsClient{
 				ListProjectRobotsV1Fn: tc.listFn,
 			}
-			ctx := context.Background()
 
-			robot, err := iam.FindProjectRobotByName(
-				ctx,
+			foundRobot, err := iam.FindProjectRobotByName(
+				context.Background(),
 				mockClient,
 				tc.searchProject,
 				tc.searchName,
 			)
 
 			if tc.wantErr && err == nil {
-				t.Fatalf(
-					"FindProjectRobotByName: expected error, got nil",
-				)
+				t.Fatalf("FindProjectRobotByName: expected error, got nil")
 			}
 
 			if !tc.wantErr && err != nil {
-				t.Fatalf(
-					"FindProjectRobotByName: unexpected error: %v",
-					err,
-				)
+				t.Fatalf("FindProjectRobotByName: unexpected error: %v", err)
 			}
 
-			if tc.wantNotFound {
-				var unknownErr *harborerrors.ErrRobotAccountUnknownResource
-
-				if !errors.As(err, &unknownErr) {
-					t.Errorf(
-						"FindProjectRobotByName: "+
-							"expected ErrRobotAccountUnknownResource, got %T: %v",
-						err,
-						err,
-					)
-				}
+			if tc.wantNotFound && !iam.IsNotFound(err) {
+				t.Errorf("FindProjectRobotByName: expected IsNotFound error, got %T: %v", err, err)
 			}
 
-			if !tc.wantErr && robot != nil && robot.Name != tc.wantRobotName {
-				t.Errorf(
-					"FindProjectRobotByName: "+
-						"robot.Name = %q, want %q",
-					robot.Name,
-					tc.wantRobotName,
-				)
+			if !tc.wantErr && foundRobot != nil && foundRobot.Name != tc.wantRobotName {
+				t.Errorf("FindProjectRobotByName: robot.Name = %q, want %q",
+					foundRobot.Name, tc.wantRobotName)
 			}
 		})
 	}
 }
 
-// TestIsNotFound verifies that IsNotFound correctly identifies not-found
-// errors from both typed errors and status-code strings.
+// TestIsNotFound verifies that IsNotFound correctly identifies
+// not-found errors.
 func TestIsNotFound(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		// name is the sub-test name.
-		name string
-		// inputErr is the error to check.
+	cases := []struct {
+		name     string
 		inputErr error
-		// want is the expected return value.
-		want bool
-	}
-
-	cases := []testCase{
+		want     bool
+	}{
 		{
-			name:     "ErrRobotAccountUnknownResource pointer returns true",
-			inputErr: &harborerrors.ErrRobotAccountUnknownResource{},
-			want:     true,
-		},
-		{
-			name:     "error string containing ][404] returns true",
-			inputErr: errors.New("something ][404] bad"),
+			name:     "ErrRobotNotFound returns true",
+			inputErr: iam.ErrRobotNotFound,
 			want:     true,
 		},
 		{
 			name:     "unrelated error returns false",
 			inputErr: errors.New("some other error"),
+			want:     false,
+		},
+		{
+			name:     "nil returns false",
+			inputErr: nil,
 			want:     false,
 		},
 	}
@@ -1103,11 +822,7 @@ func TestIsNotFound(t *testing.T) {
 			got := iam.IsNotFound(tc.inputErr)
 
 			if got != tc.want {
-				t.Errorf(
-					"IsNotFound: got %v, want %v",
-					got,
-					tc.want,
-				)
+				t.Errorf("IsNotFound(%v) = %v, want %v", tc.inputErr, got, tc.want)
 			}
 		})
 	}

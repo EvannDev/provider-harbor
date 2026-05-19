@@ -17,7 +17,7 @@ package fake
 import (
 	"context"
 
-	modelv2 "github.com/mittwald/goharbor-client/v5/apiv2/model"
+	"github.com/goharbor/go-client/pkg/sdk/v2.0/models"
 
 	iamclient "github.com/EvannDev/provider-harbor/internal/clients/iam"
 )
@@ -25,15 +25,15 @@ import (
 // MockRobotAccountsClient is a mock implementation of iam.RobotAccountsClient.
 type MockRobotAccountsClient struct {
 	// GetRobotAccountByIDFn is called by GetRobotAccountByID when set.
-	GetRobotAccountByIDFn func(ctx context.Context, id int64) (*modelv2.Robot, error)
+	GetRobotAccountByIDFn func(ctx context.Context, id int64) (*models.Robot, error)
 	// GetRobotAccountByNameFn is called by GetRobotAccountByName when set.
-	GetRobotAccountByNameFn func(ctx context.Context, name string) (*modelv2.Robot, error)
+	GetRobotAccountByNameFn func(ctx context.Context, name string) (*models.Robot, error)
 	// ListProjectRobotsV1Fn is called by ListProjectRobotsV1 when set.
-	ListProjectRobotsV1Fn func(ctx context.Context, project string) ([]*modelv2.Robot, error)
+	ListProjectRobotsV1Fn func(ctx context.Context, project string) ([]*models.Robot, error)
 	// NewRobotAccountFn is called by NewRobotAccount when set.
-	NewRobotAccountFn func(ctx context.Context, robot *modelv2.RobotCreate) (*modelv2.RobotCreated, error)
+	NewRobotAccountFn func(ctx context.Context, robot *models.RobotCreate) (*models.RobotCreated, error)
 	// UpdateRobotAccountFn is called by UpdateRobotAccount when set.
-	UpdateRobotAccountFn func(ctx context.Context, robot *modelv2.Robot) error
+	UpdateRobotAccountFn func(ctx context.Context, id int64, robot *models.Robot) error
 	// DeleteRobotAccountByIDFn is called by DeleteRobotAccountByID when set.
 	DeleteRobotAccountByIDFn func(ctx context.Context, id int64) error
 }
@@ -42,7 +42,7 @@ type MockRobotAccountsClient struct {
 var _ iamclient.RobotAccountsClient = &MockRobotAccountsClient{}
 
 // GetRobotAccountByID implements RobotAccountsClient.GetRobotAccountByID.
-func (m *MockRobotAccountsClient) GetRobotAccountByID(ctx context.Context, id int64) (*modelv2.Robot, error) {
+func (m *MockRobotAccountsClient) GetRobotAccountByID(ctx context.Context, id int64) (*models.Robot, error) {
 	if m.GetRobotAccountByIDFn != nil {
 		return m.GetRobotAccountByIDFn(ctx, id)
 	}
@@ -51,7 +51,7 @@ func (m *MockRobotAccountsClient) GetRobotAccountByID(ctx context.Context, id in
 }
 
 // GetRobotAccountByName implements RobotAccountsClient.GetRobotAccountByName.
-func (m *MockRobotAccountsClient) GetRobotAccountByName(ctx context.Context, name string) (*modelv2.Robot, error) {
+func (m *MockRobotAccountsClient) GetRobotAccountByName(ctx context.Context, name string) (*models.Robot, error) {
 	if m.GetRobotAccountByNameFn != nil {
 		return m.GetRobotAccountByNameFn(ctx, name)
 	}
@@ -60,7 +60,7 @@ func (m *MockRobotAccountsClient) GetRobotAccountByName(ctx context.Context, nam
 }
 
 // ListProjectRobotsV1 implements RobotAccountsClient.ListProjectRobotsV1.
-func (m *MockRobotAccountsClient) ListProjectRobotsV1(ctx context.Context, project string) ([]*modelv2.Robot, error) {
+func (m *MockRobotAccountsClient) ListProjectRobotsV1(ctx context.Context, project string) ([]*models.Robot, error) {
 	if m.ListProjectRobotsV1Fn != nil {
 		return m.ListProjectRobotsV1Fn(ctx, project)
 	}
@@ -69,18 +69,18 @@ func (m *MockRobotAccountsClient) ListProjectRobotsV1(ctx context.Context, proje
 }
 
 // NewRobotAccount implements RobotAccountsClient.NewRobotAccount.
-func (m *MockRobotAccountsClient) NewRobotAccount(ctx context.Context, robot *modelv2.RobotCreate) (*modelv2.RobotCreated, error) {
+func (m *MockRobotAccountsClient) NewRobotAccount(ctx context.Context, robotCreate *models.RobotCreate) (*models.RobotCreated, error) {
 	if m.NewRobotAccountFn != nil {
-		return m.NewRobotAccountFn(ctx, robot)
+		return m.NewRobotAccountFn(ctx, robotCreate)
 	}
 
 	return nil, errNotImplemented
 }
 
 // UpdateRobotAccount implements RobotAccountsClient.UpdateRobotAccount.
-func (m *MockRobotAccountsClient) UpdateRobotAccount(ctx context.Context, robot *modelv2.Robot) error {
+func (m *MockRobotAccountsClient) UpdateRobotAccount(ctx context.Context, id int64, robotModel *models.Robot) error {
 	if m.UpdateRobotAccountFn != nil {
-		return m.UpdateRobotAccountFn(ctx, robot)
+		return m.UpdateRobotAccountFn(ctx, id, robotModel)
 	}
 
 	return errNotImplemented

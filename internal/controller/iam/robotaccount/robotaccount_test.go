@@ -20,8 +20,7 @@ import (
 	"strconv"
 	"testing"
 
-	modelv2 "github.com/mittwald/goharbor-client/v5/apiv2/model"
-	harborerrors "github.com/mittwald/goharbor-client/v5/apiv2/pkg/errors"
+	"github.com/goharbor/go-client/pkg/sdk/v2.0/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
@@ -29,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	iamv1alpha1 "github.com/EvannDev/provider-harbor/apis/iam/v1alpha1"
+	iamclient "github.com/EvannDev/provider-harbor/internal/clients/iam"
 	"github.com/EvannDev/provider-harbor/internal/fake"
 )
 
@@ -94,10 +94,10 @@ func newTestAccount() *iamv1alpha1.RobotAccount {
 }
 
 // newTestRobot returns a minimal Harbor Robot for testing.
-func newTestRobot() *modelv2.Robot {
+func newTestRobot() *models.Robot {
 	robotID := testRobotID
 
-	return &modelv2.Robot{
+	return &models.Robot{
 		ID:          robotID,
 		Name:        testRobotFullName,
 		Description: testDescription,
@@ -191,7 +191,7 @@ func TestFindRobot(t *testing.T) {
 		name       string
 		account    *iamv1alpha1.RobotAccount
 		mockClient *fake.MockRobotAccountsClient
-		wantRobot  *modelv2.Robot
+		wantRobot  *models.Robot
 		wantError  bool
 	}{
 		{
@@ -204,7 +204,7 @@ func TestFindRobot(t *testing.T) {
 				return acc
 			}(),
 			mockClient: &fake.MockRobotAccountsClient{
-				GetRobotAccountByIDFn: func(_ context.Context, id int64) (*modelv2.Robot, error) {
+				GetRobotAccountByIDFn: func(_ context.Context, id int64) (*models.Robot, error) {
 					if id == testRobotID {
 						return robot, nil
 					}
@@ -231,7 +231,7 @@ func TestFindRobot(t *testing.T) {
 				},
 			},
 			mockClient: &fake.MockRobotAccountsClient{
-				GetRobotAccountByIDFn: func(_ context.Context, _ int64) (*modelv2.Robot, error) {
+				GetRobotAccountByIDFn: func(_ context.Context, _ int64) (*models.Robot, error) {
 					return robot, nil
 				},
 			},
@@ -273,8 +273,8 @@ func TestFindRobot(t *testing.T) {
 				},
 			},
 			mockClient: &fake.MockRobotAccountsClient{
-				ListProjectRobotsV1Fn: func(_ context.Context, _ string) ([]*modelv2.Robot, error) {
-					return []*modelv2.Robot{robot}, nil
+				ListProjectRobotsV1Fn: func(_ context.Context, _ string) ([]*models.Robot, error) {
+					return []*models.Robot{robot}, nil
 				},
 			},
 			wantRobot: robot,
@@ -293,7 +293,7 @@ func TestFindRobot(t *testing.T) {
 				},
 			},
 			mockClient: &fake.MockRobotAccountsClient{
-				GetRobotAccountByNameFn: func(_ context.Context, _ string) (*modelv2.Robot, error) {
+				GetRobotAccountByNameFn: func(_ context.Context, _ string) (*models.Robot, error) {
 					return robot, nil
 				},
 			},
@@ -374,8 +374,8 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			mockClient: &fake.MockRobotAccountsClient{
-				GetRobotAccountByNameFn: func(_ context.Context, _ string) (*modelv2.Robot, error) {
-					return nil, &harborerrors.ErrRobotAccountUnknownResource{}
+				GetRobotAccountByNameFn: func(_ context.Context, _ string) (*models.Robot, error) {
+					return nil, iamclient.ErrRobotNotFound
 				},
 			},
 			wantExists:   false,
@@ -391,7 +391,7 @@ func TestObserve(t *testing.T) {
 				return acc
 			}(),
 			mockClient: &fake.MockRobotAccountsClient{
-				GetRobotAccountByIDFn: func(_ context.Context, _ int64) (*modelv2.Robot, error) {
+				GetRobotAccountByIDFn: func(_ context.Context, _ int64) (*models.Robot, error) {
 					return nil, errFakeAPI
 				},
 			},
@@ -409,16 +409,16 @@ func TestObserve(t *testing.T) {
 				return acc
 			}(),
 			mockClient: &fake.MockRobotAccountsClient{
-				GetRobotAccountByIDFn: func(_ context.Context, _ int64) (*modelv2.Robot, error) {
-					return &modelv2.Robot{
+				GetRobotAccountByIDFn: func(_ context.Context, _ int64) (*models.Robot, error) {
+					return &models.Robot{
 						ID:          testRobotID,
 						Name:        testRobotFullName,
 						Description: testDescription,
-						Permissions: []*modelv2.RobotPermission{
+						Permissions: []*models.RobotPermission{
 							{
 								Kind:      levelProject,
 								Namespace: testProjectNS,
-								Access: []*modelv2.Access{
+								Access: []*models.Access{
 									{Resource: resourceRepository, Action: actionPull},
 								},
 							},
@@ -440,7 +440,7 @@ func TestObserve(t *testing.T) {
 				return acc
 			}(),
 			mockClient: &fake.MockRobotAccountsClient{
-				GetRobotAccountByIDFn: func(_ context.Context, _ int64) (*modelv2.Robot, error) {
+				GetRobotAccountByIDFn: func(_ context.Context, _ int64) (*models.Robot, error) {
 					return robot, nil
 				},
 			},
@@ -492,7 +492,7 @@ func TestCreate(t *testing.T) {
 	tests := []struct {
 		name              string
 		account           *iamv1alpha1.RobotAccount
-		newRobotAccountFn func(context.Context, *modelv2.RobotCreate) (*modelv2.RobotCreated, error)
+		newRobotAccountFn func(context.Context, *models.RobotCreate) (*models.RobotCreated, error)
 		wantError         bool
 	}{
 		{
@@ -513,7 +513,7 @@ func TestCreate(t *testing.T) {
 		{
 			name:    tcAPIError,
 			account: newTestAccount(),
-			newRobotAccountFn: func(_ context.Context, _ *modelv2.RobotCreate) (*modelv2.RobotCreated, error) {
+			newRobotAccountFn: func(_ context.Context, _ *models.RobotCreate) (*models.RobotCreated, error) {
 				return nil, errFakeAPI
 			},
 			wantError: true,
@@ -521,8 +521,8 @@ func TestCreate(t *testing.T) {
 		{
 			name:    tcSuccess,
 			account: newTestAccount(),
-			newRobotAccountFn: func(_ context.Context, _ *modelv2.RobotCreate) (*modelv2.RobotCreated, error) {
-				return &modelv2.RobotCreated{
+			newRobotAccountFn: func(_ context.Context, _ *models.RobotCreate) (*models.RobotCreated, error) {
+				return &models.RobotCreated{
 					ID:     testRobotID,
 					Name:   testRobotFullName,
 					Secret: testRobotSecret,
@@ -603,8 +603,8 @@ func TestUpdate(t *testing.T) {
 	tests := []struct {
 		name                  string
 		account               *iamv1alpha1.RobotAccount
-		getRobotAccountByIDFn func(context.Context, int64) (*modelv2.Robot, error)
-		updateRobotAccountFn  func(context.Context, *modelv2.Robot) error
+		getRobotAccountByIDFn func(context.Context, int64) (*models.Robot, error)
+		updateRobotAccountFn  func(context.Context, int64, *models.Robot) error
 		wantError             bool
 	}{
 		{
@@ -630,7 +630,7 @@ func TestUpdate(t *testing.T) {
 
 				return acc
 			}(),
-			getRobotAccountByIDFn: func(_ context.Context, _ int64) (*modelv2.Robot, error) {
+			getRobotAccountByIDFn: func(_ context.Context, _ int64) (*models.Robot, error) {
 				return nil, errFakeAPI
 			},
 			wantError: true,
@@ -643,10 +643,10 @@ func TestUpdate(t *testing.T) {
 
 				return acc
 			}(),
-			getRobotAccountByIDFn: func(_ context.Context, _ int64) (*modelv2.Robot, error) {
+			getRobotAccountByIDFn: func(_ context.Context, _ int64) (*models.Robot, error) {
 				return robot, nil
 			},
-			updateRobotAccountFn: func(_ context.Context, _ *modelv2.Robot) error {
+			updateRobotAccountFn: func(_ context.Context, _ int64, _ *models.Robot) error {
 				return errFakeAPI
 			},
 			wantError: true,
@@ -659,10 +659,10 @@ func TestUpdate(t *testing.T) {
 
 				return acc
 			}(),
-			getRobotAccountByIDFn: func(_ context.Context, _ int64) (*modelv2.Robot, error) {
+			getRobotAccountByIDFn: func(_ context.Context, _ int64) (*models.Robot, error) {
 				return robot, nil
 			},
-			updateRobotAccountFn: func(_ context.Context, _ *modelv2.Robot) error {
+			updateRobotAccountFn: func(_ context.Context, _ int64, _ *models.Robot) error {
 				return nil
 			},
 			wantError: false,
@@ -704,8 +704,8 @@ func TestDelete(t *testing.T) {
 	tests := []struct {
 		name                     string
 		account                  *iamv1alpha1.RobotAccount
-		getRobotAccountByIDFn    func(context.Context, int64) (*modelv2.Robot, error)
-		getRobotAccountByNameFn  func(context.Context, string) (*modelv2.Robot, error)
+		getRobotAccountByIDFn    func(context.Context, int64) (*models.Robot, error)
+		getRobotAccountByNameFn  func(context.Context, string) (*models.Robot, error)
 		deleteRobotAccountByIDFn func(context.Context, int64) error
 		wantError                bool
 	}{
@@ -734,8 +734,8 @@ func TestDelete(t *testing.T) {
 					},
 				},
 			},
-			getRobotAccountByNameFn: func(_ context.Context, _ string) (*modelv2.Robot, error) {
-				return nil, &harborerrors.ErrRobotAccountUnknownResource{}
+			getRobotAccountByNameFn: func(_ context.Context, _ string) (*models.Robot, error) {
+				return nil, iamclient.ErrRobotNotFound
 			},
 			wantError: false,
 		},
@@ -747,11 +747,11 @@ func TestDelete(t *testing.T) {
 
 				return acc
 			}(),
-			getRobotAccountByIDFn: func(_ context.Context, _ int64) (*modelv2.Robot, error) {
+			getRobotAccountByIDFn: func(_ context.Context, _ int64) (*models.Robot, error) {
 				return robot, nil
 			},
 			deleteRobotAccountByIDFn: func(_ context.Context, _ int64) error {
-				return &harborerrors.ErrRobotAccountUnknownResource{}
+				return iamclient.ErrRobotNotFound
 			},
 			wantError: false,
 		},
@@ -763,7 +763,7 @@ func TestDelete(t *testing.T) {
 
 				return acc
 			}(),
-			getRobotAccountByIDFn: func(_ context.Context, _ int64) (*modelv2.Robot, error) {
+			getRobotAccountByIDFn: func(_ context.Context, _ int64) (*models.Robot, error) {
 				return robot, nil
 			},
 			deleteRobotAccountByIDFn: func(_ context.Context, _ int64) error {
@@ -779,7 +779,7 @@ func TestDelete(t *testing.T) {
 
 				return acc
 			}(),
-			getRobotAccountByIDFn: func(_ context.Context, _ int64) (*modelv2.Robot, error) {
+			getRobotAccountByIDFn: func(_ context.Context, _ int64) (*models.Robot, error) {
 				return robot, nil
 			},
 			deleteRobotAccountByIDFn: func(_ context.Context, _ int64) error {

@@ -28,14 +28,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/statemetrics"
-	apiv2 "github.com/mittwald/goharbor-client/v5/apiv2"
-	harborerrors "github.com/mittwald/goharbor-client/v5/apiv2/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	projectv1alpha1 "github.com/EvannDev/provider-harbor/apis/project/v1alpha1"
 	apisv1alpha1 "github.com/EvannDev/provider-harbor/apis/v1alpha1"
-	harborclient "github.com/EvannDev/provider-harbor/internal/clients/harbor"
+	"github.com/EvannDev/provider-harbor/internal/clients/common"
 	projectclient "github.com/EvannDev/provider-harbor/internal/clients/project"
 )
 
@@ -114,7 +112,7 @@ func Setup(mgr ctrl.Manager, opts controller.Options) error {
 type connector struct {
 	kube         client.Client
 	usage        *resource.ProviderConfigUsageTracker
-	newServiceFn func(apiv2.Client) projectclient.ProjectsClient
+	newServiceFn func(common.Config) projectclient.ProjectsClient
 }
 
 // Connect implements managed.TypedExternalConnecter.
@@ -124,12 +122,12 @@ func (c *connector) Connect(ctx context.Context, proj *projectv1alpha1.Project) 
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
-	cl, err := harborclient.NewClient(ctx, c.kube, proj.GetProviderConfigReference(), proj.GetNamespace())
+	cfg, err := common.GetConfig(ctx, c.kube, proj)
 	if err != nil {
 		return nil, errors.Wrap(err, errNewClient)
 	}
 
-	return &external{client: c.newServiceFn(cl)}, nil
+	return &external{client: c.newServiceFn(*cfg)}, nil
 }
 
 // external implements Observe/Create/Update/Delete against the Harbor API.
@@ -189,15 +187,9 @@ func (e *external) Create(ctx context.Context, proj *projectv1alpha1.Project) (m
 // Update reconciles the project's state with the desired spec.
 func (e *external) Update(ctx context.Context, proj *projectv1alpha1.Project) (managed.ExternalUpdate, error) {
 	name := projectName(proj)
+	req := projectclient.ToProjectReq(name, proj.Spec.ForProvider)
 
-	observed, err := e.client.GetProject(ctx, name)
-	if err != nil {
-		return managed.ExternalUpdate{}, errors.Wrap(err, errUpdate)
-	}
-
-	projectclient.ApplyProjectParameters(proj.Spec.ForProvider, observed)
-
-	err = e.client.UpdateProject(ctx, observed, proj.Spec.ForProvider.StorageLimit)
+	err := e.client.UpdateProject(ctx, name, req)
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, errUpdate)
 	}
@@ -226,10 +218,5 @@ func (e *external) Disconnect(_ context.Context) error { return nil }
 
 // isNotFound reports whether the error is a Harbor project-not-found response.
 func isNotFound(err error) bool {
-	var (
-		notFound *harborerrors.ErrProjectNotFound
-		mismatch *harborerrors.ErrProjectMismatch
-	)
-
-	return errors.As(err, &notFound) || errors.As(err, &mismatch)
+	return projectclient.IsProjectNotFound(err)
 }

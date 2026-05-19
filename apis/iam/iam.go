@@ -14,9 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package iam contains managed resources for Harbor IAM resources.
+// Package iam contains group iam API versions
 package iam
-
-import (
-	_ "github.com/EvannDev/provider-harbor/apis/iam/v1alpha1" //nolint:blank-imports // imported for side-effect of registering types
-)

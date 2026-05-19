@@ -40,13 +40,15 @@ type {{ .Env.KIND }}Observation struct {
 // A {{ .Env.KIND }}Spec defines the desired state of a {{ .Env.KIND }}.
 type {{ .Env.KIND }}Spec struct {
 	xpv2.ManagedResourceSpec `json:",inline"`
-	ForProvider              {{ .Env.KIND }}Parameters `json:"forProvider"`
+
+	ForProvider {{ .Env.KIND }}Parameters `json:"forProvider"`
 }
 
 // A {{ .Env.KIND }}Status represents the observed state of a {{ .Env.KIND }}.
 type {{ .Env.KIND }}Status struct {
 	xpv1.ResourceStatus `json:",inline"`
-	AtProvider          {{ .Env.KIND }}Observation `json:"atProvider,omitempty"`
+
+	AtProvider {{ .Env.KIND }}Observation `json:"atProvider,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -68,11 +70,12 @@ type {{ .Env.KIND }} struct {
 
 // +kubebuilder:object:root=true
 
-// {{ .Env.KIND }}List contains a list of {{ .Env.KIND }}
+// {{ .Env.KIND }}List contains a list of {{ .Env.KIND }}.
 type {{ .Env.KIND }}List struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []{{ .Env.KIND }} `json:"items"`
+
+	Items []{{ .Env.KIND }} `json:"items"`
 }
 
 // {{ .Env.KIND }} type metadata.
@@ -83,6 +86,7 @@ var (
 	{{ .Env.KIND }}GroupVersionKind = SchemeGroupVersion.WithKind({{ .Env.KIND }}Kind)
 )
 
+// init registers the {{ .Env.KIND }} and {{ .Env.KIND }}List types with the scheme builder.
 func init() {
 	SchemeBuilder.Register(&{{ .Env.KIND }}{}, &{{ .Env.KIND }}List{})
 }

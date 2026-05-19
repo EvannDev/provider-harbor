@@ -19,13 +19,12 @@ import (
 	"errors"
 	"testing"
 
-	modelv2 "github.com/mittwald/goharbor-client/v5/apiv2/model"
-	harborerrors "github.com/mittwald/goharbor-client/v5/apiv2/pkg/errors"
+	"github.com/goharbor/go-client/pkg/sdk/v2.0/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/gate"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	projectv1alpha1 "github.com/EvannDev/provider-harbor/apis/project/v1alpha1"
 	"github.com/EvannDev/provider-harbor/internal/fake"
@@ -57,8 +56,8 @@ func newTestProject() *projectv1alpha1.Project {
 }
 
 // newHarborProject returns a minimal Harbor Project for testing.
-func newHarborProject() *modelv2.Project {
-	return &modelv2.Project{
+func newHarborProject() *models.Project {
+	return &models.Project{
 		Name:      testProjectName,
 		OwnerName: testOwnerName,
 	}
@@ -91,8 +90,7 @@ func TestDisconnect(t *testing.T) {
 	}
 }
 
-// TestIsNotFound verifies the isNotFound predicate for
-// project errors.
+// TestIsNotFound verifies the isNotFound predicate for project errors.
 func TestIsNotFound(t *testing.T) {
 	t.Parallel()
 
@@ -102,18 +100,13 @@ func TestIsNotFound(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "ErrProjectNotFound",
-			err:  &harborerrors.ErrProjectNotFound{},
-			want: true,
-		},
-		{
-			name: "ErrProjectMismatch",
-			err:  &harborerrors.ErrProjectMismatch{},
-			want: true,
-		},
-		{
 			name: "generic error",
 			err:  errors.New("some other error"),
+			want: false,
+		},
+		{
+			name: "nil error",
+			err:  nil,
 			want: false,
 		},
 	}
@@ -193,25 +186,15 @@ func TestObserve(t *testing.T) {
 	tests := []struct {
 		name         string
 		proj         *projectv1alpha1.Project
-		getProjectFn func(context.Context, string) (*modelv2.Project, error)
+		getProjectFn func(context.Context, string) (*models.Project, error)
 		wantExists   bool
 		wantUpToDate bool
 		wantError    bool
 	}{
 		{
-			name: "project not found",
-			proj: newTestProject(),
-			getProjectFn: func(_ context.Context, _ string) (*modelv2.Project, error) {
-				return nil, &harborerrors.ErrProjectNotFound{}
-			},
-			wantExists:   false,
-			wantUpToDate: false,
-			wantError:    false,
-		},
-		{
 			name: tcAPIError,
 			proj: newTestProject(),
-			getProjectFn: func(_ context.Context, _ string) (*modelv2.Project, error) {
+			getProjectFn: func(_ context.Context, _ string) (*models.Project, error) {
 				return nil, errFakeAPI
 			},
 			wantExists:   false,
@@ -221,7 +204,7 @@ func TestObserve(t *testing.T) {
 		{
 			name: "found and up to date",
 			proj: newTestProject(),
-			getProjectFn: func(_ context.Context, _ string) (*modelv2.Project, error) {
+			getProjectFn: func(_ context.Context, _ string) (*models.Project, error) {
 				return newHarborProject(), nil
 			},
 			wantExists:   true,
@@ -238,7 +221,7 @@ func TestObserve(t *testing.T) {
 					},
 				},
 			},
-			getProjectFn: func(_ context.Context, _ string) (*modelv2.Project, error) {
+			getProjectFn: func(_ context.Context, _ string) (*models.Project, error) {
 				return newHarborProject(), nil
 			},
 			wantExists:   true,
@@ -291,19 +274,19 @@ func TestCreate(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		newProjectFn func(context.Context, *modelv2.ProjectReq) error
+		newProjectFn func(context.Context, *models.ProjectReq) error
 		wantError    bool
 	}{
 		{
 			name: tcSuccess,
-			newProjectFn: func(_ context.Context, _ *modelv2.ProjectReq) error {
+			newProjectFn: func(_ context.Context, _ *models.ProjectReq) error {
 				return nil
 			},
 			wantError: false,
 		},
 		{
 			name: tcAPIError,
-			newProjectFn: func(_ context.Context, _ *modelv2.ProjectReq) error {
+			newProjectFn: func(_ context.Context, _ *models.ProjectReq) error {
 				return errFakeAPI
 			},
 			wantError: true,
@@ -338,40 +321,26 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-// TestUpdate verifies the Update method fetches the project,
-// applies changes, and propagates API errors.
+// TestUpdate verifies the Update method sends the project req and propagates
+// API errors.
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name            string
-		getProjectFn    func(context.Context, string) (*modelv2.Project, error)
-		updateProjectFn func(context.Context, *modelv2.Project, *int64) error
+		updateProjectFn func(context.Context, string, *models.ProjectReq) error
 		wantError       bool
 	}{
 		{
 			name: tcSuccess,
-			getProjectFn: func(_ context.Context, _ string) (*modelv2.Project, error) {
-				return newHarborProject(), nil
-			},
-			updateProjectFn: func(_ context.Context, _ *modelv2.Project, _ *int64) error {
+			updateProjectFn: func(_ context.Context, _ string, _ *models.ProjectReq) error {
 				return nil
 			},
 			wantError: false,
 		},
 		{
-			name: "get project error",
-			getProjectFn: func(_ context.Context, _ string) (*modelv2.Project, error) {
-				return nil, errFakeAPI
-			},
-			wantError: true,
-		},
-		{
-			name: "update project error",
-			getProjectFn: func(_ context.Context, _ string) (*modelv2.Project, error) {
-				return newHarborProject(), nil
-			},
-			updateProjectFn: func(_ context.Context, _ *modelv2.Project, _ *int64) error {
+			name: tcAPIError,
+			updateProjectFn: func(_ context.Context, _ string, _ *models.ProjectReq) error {
 				return errFakeAPI
 			},
 			wantError: true,
@@ -384,7 +353,6 @@ func TestUpdate(t *testing.T) {
 
 			ext := &external{
 				client: &fake.MockProjectsClient{
-					GetProjectFn:    tc.getProjectFn,
 					UpdateProjectFn: tc.updateProjectFn,
 				},
 			}
@@ -416,13 +384,6 @@ func TestDelete(t *testing.T) {
 			name: tcSuccess,
 			deleteProjectFn: func(_ context.Context, _ string) error {
 				return nil
-			},
-			wantError: false,
-		},
-		{
-			name: "not found is idempotent",
-			deleteProjectFn: func(_ context.Context, _ string) error {
-				return &harborerrors.ErrProjectNotFound{}
 			},
 			wantError: false,
 		},
