@@ -1,0 +1,59 @@
+# Harbor Helm values for the local dev kind cluster.
+# kind maps host 0.0.0.0:9000 → NodePort 30080 → Harbor nginx.
+expose:
+  type: nodePort
+  nodePort:
+    name: harbor
+    ports:
+      http:
+        port: 80
+        nodePort: 30080
+  tls:
+    enabled: false
+
+# Provider runs out-of-cluster on the same host, so localhost resolves correctly.
+externalURL: http://localhost:9000
+
+persistence:
+  enabled: false
+
+core:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+jobservice:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+registry:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+redis:
+  internal:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+
+database:
+  internal:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+chartmuseum:
+  enabled: false
+
+notary:
+  enabled: false
+
+trivy:
+  enabled: false
