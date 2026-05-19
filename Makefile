@@ -111,13 +111,21 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/provider --debug
 
-dev: $(KIND) $(KUBECTL)
+HARBOR_DEV_PORT     ?= 9000
+HARBOR_DEV_PASSWORD ?= Harbor12345
+
+dev: $(KIND) $(KUBECTL) $(HELM)
 	@$(INFO) Creating kind cluster
-	@$(KIND) create cluster --name=$(PROJECT_NAME)-dev
+	@$(KIND) create cluster --name=$(PROJECT_NAME)-dev --config=$(ROOT_DIR)/cluster/local/kind-dev.yaml
 	@$(KUBECTL) cluster-info --context kind-$(PROJECT_NAME)-dev
-	@$(INFO) Installing Provider Template CRDs
+	@$(INFO) Installing Provider CRDs
 	@$(KUBECTL) apply -R -f package/crds
-	@$(INFO) Starting Provider Template controllers
+	@$(INFO) Installing Harbor dev instance on port $(HARBOR_DEV_PORT)
+	@KUBECTL=$(KUBECTL) HELM3=$(HELM) \
+	    HARBOR_HOST_PORT=$(HARBOR_DEV_PORT) \
+	    HARBOR_ADMIN_PASSWORD=$(HARBOR_DEV_PASSWORD) \
+	    $(ROOT_DIR)/cluster/local/harbor_dev_setup.sh
+	@$(INFO) Starting Provider controllers
 	@$(GO) run cmd/provider/main.go --debug
 
 dev-clean: $(KIND) $(KUBECTL)

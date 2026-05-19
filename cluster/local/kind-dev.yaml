@@ -1,0 +1,10 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # Harbor nginx NodePort → host port 9000 on all interfaces (network-accessible).
+      - containerPort: 30080
+        hostPort: 9000
+        protocol: TCP
+        listenAddress: "0.0.0.0"
