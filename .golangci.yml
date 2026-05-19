@@ -171,7 +171,7 @@ formatters:
       simplify: true
     goimports:
       local-prefixes:
-        - github.com/crossplane/provider-harbor
+        - github.com/EvannDev/provider-harbor
   exclusions:
     generated: lax
     paths:

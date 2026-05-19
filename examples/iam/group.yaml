@@ -30,17 +30,17 @@ spec:
     name: my-oidc-group # must match the group claim value from your OIDC IdP
     type: oidc
 ---
-# # LDAP group — linked to a distinguished name in your AD/LDAP directory.
-# apiVersion: iam.harbor.crossplane.io/v1alpha1
-# kind: Group
-# metadata:
-#   name: my-ldap-group
-#   namespace: default
-# spec:
-#   providerConfigRef:
-#     name: default
-#     kind: ProviderConfig
-#   forProvider:
-#     name: my-ldap-group
-#     type: ldap
-#     groupDn: "cn=developers,ou=groups,dc=example,dc=com"
+# LDAP group — linked to a distinguished name in your AD/LDAP directory.
+apiVersion: iam.harbor.crossplane.io/v1alpha1
+kind: Group
+metadata:
+  name: my-ldap-group
+  namespace: default
+spec:
+  providerConfigRef:
+    name: default
+    kind: ProviderConfig
+  forProvider:
+    name: my-ldap-group
+    type: ldap
+    groupDn: "cn=developers,ou=groups,dc=example,dc=com"

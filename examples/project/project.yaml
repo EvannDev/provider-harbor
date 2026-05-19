@@ -1,8 +1,9 @@
+---
 apiVersion: project.harbor.crossplane.io/v1alpha1
 kind: Project
 metadata:
   name: my-project
-  namespace: crossplane-system
+  namespace: default
   annotations:
     # crossplane.io/external-name controls the project name in Harbor.
     # Defaults to the CR name if not set.

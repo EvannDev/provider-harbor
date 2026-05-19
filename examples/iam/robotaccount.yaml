@@ -4,7 +4,7 @@ apiVersion: iam.harbor.crossplane.io/v1alpha1
 kind: RobotAccount
 metadata:
   name: my-ci-robot
-  namespace: crossplane-system
+  namespace: default
   annotations:
     # crossplane.io/external-name is the short robot name (without "robot$").
     # Harbor stores it as "robot$my-ci-robot". Defaults to the CR name.
@@ -15,17 +15,16 @@ spec:
   # The generated token is written to this connection secret.
   writeConnectionSecretToRef:
     name: my-ci-robot-secret
-    namespace: crossplane-system
   forProvider:
     level: system
     description: "CI/CD robot for image push"
-    duration: 365   # days; -1 = never expires
+    duration: 365 # days; -1 = never expires
     disable: false
     permissions:
       - kind: project
         # Option 1: reference a Project CR — external name is used as namespace.
         namespaceRef:
-          name: my-project   # name of the Project CR in the same namespace
+          name: my-project # name of the Project CR in the same namespace
         access:
           - resource: repository
             action: push
@@ -45,7 +44,7 @@ apiVersion: iam.harbor.crossplane.io/v1alpha1
 kind: RobotAccount
 metadata:
   name: my-project-robot
-  namespace: crossplane-system
+  namespace: default
   annotations:
     crossplane.io/external-name: my-project-robot
 spec:
@@ -53,11 +52,10 @@ spec:
     name: default
   writeConnectionSecretToRef:
     name: my-project-robot-secret
-    namespace: crossplane-system
   forProvider:
     level: project
     description: "Project-scoped robot for image push"
-    duration: -1   # never expires
+    duration: -1 # never expires
     permissions:
       - kind: project
         namespaceRef:
