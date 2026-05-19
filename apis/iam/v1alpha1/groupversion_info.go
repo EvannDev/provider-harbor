@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains managed resources for Harbor IAM resources.
+// Package v1alpha1 contains the v1alpha1 group Sample
+// resources of the Harbor provider.
 // +kubebuilder:object:generate=true
 // +groupName=iam.harbor.crossplane.io
 // +versionName=v1alpha1
@@ -27,13 +28,13 @@ import (
 
 // Package type metadata.
 const (
-	Group   = "iam.harbor.crossplane.io"
-	Version = "v1alpha1"
+	GroupAPI = "iam.harbor.crossplane.io"
+	Version  = "v1alpha1"
 )
 
 var (
 	// SchemeGroupVersion is group version used to register these objects.
-	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
+	SchemeGroupVersion = schema.GroupVersion{Group: GroupAPI, Version: Version}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}

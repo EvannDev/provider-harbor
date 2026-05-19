@@ -142,7 +142,7 @@ var (
 	// RobotAccountKind is the kind name for the RobotAccount type.
 	RobotAccountKind = reflect.TypeFor[RobotAccount]().Name()
 	// RobotAccountGroupKind is the group-kind string for the RobotAccount type.
-	RobotAccountGroupKind = schema.GroupKind{Group: Group, Kind: RobotAccountKind}.String()
+	RobotAccountGroupKind = schema.GroupKind{Group: GroupAPI, Kind: RobotAccountKind}.String()
 	// RobotAccountKindAPIVersion is the kind/apiVersion for the RobotAccount type.
 	RobotAccountKindAPIVersion = RobotAccountKind + "." + SchemeGroupVersion.String()
 	// RobotAccountGroupVersionKind is the GroupVersionKind for RobotAccount.

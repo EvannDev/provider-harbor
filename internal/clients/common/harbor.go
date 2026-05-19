@@ -49,6 +49,14 @@ type Config struct {
 	InsecureSkipTLSVerify bool
 }
 
+// PaginationArgs holds optional parameters for paginated API calls.
+type PaginationArgs struct {
+	// PageSize is the number of items to return per page.
+	PageSize *int64
+	// Page is the page number to return.
+	Page *int64
+}
+
 // harborCredentials holds credentials parsed from a Kubernetes Secret.
 // The Secret value must be a JSON object with "username" and "password" keys.
 type harborCredentials struct {

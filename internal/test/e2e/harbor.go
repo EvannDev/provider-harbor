@@ -27,6 +27,7 @@ import (
 	goopenapiruntime "github.com/go-openapi/runtime"
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/client/project"
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/client/robot"
+	"github.com/goharbor/go-client/pkg/sdk/v2.0/client/usergroup"
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/models"
 )
 
@@ -112,6 +113,35 @@ func isRobotNotFound(err error) bool {
 
 	var apiErr *goopenapiruntime.APIError
 	if errors.As(err, &apiErr) && apiErr.Code == http.StatusNotFound {
+		return true
+	}
+
+	return strings.Contains(err.Error(), "][404]")
+}
+
+// FetchUserGroupByID returns the Harbor user group with the given ID,
+// or (nil, nil) if no such group exists.
+func (f *Framework) FetchUserGroupByID(id int64) (*models.UserGroup, error) {
+	resp, err := f.Harbor.Usergroup.GetUserGroup(context.Background(), &usergroup.GetUserGroupParams{GroupID: id})
+	if isUserGroupNotFound(err) {
+		return nil, nil //nolint:nilnil // intentional: 404 is the natural absence sentinel
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.GetPayload(), nil
+}
+
+// isUserGroupNotFound reports whether err is a Harbor 404 for a user group.
+func isUserGroupNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var notFound *usergroup.GetUserGroupNotFound
+	if errors.As(err, &notFound) {
 		return true
 	}
 
