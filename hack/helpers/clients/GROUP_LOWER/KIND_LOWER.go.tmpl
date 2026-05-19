@@ -24,41 +24,36 @@ import (
 	"{{ .Env.PROJECT_REPO }}/internal/clients/common"
 )
 
-// {{ .Env.KIND }}sClient is the interface for interacting with Harbor {{ .Env.KIND }} API
-// It handles all the operations related to {{ .Env.KIND }}s in Harbor, such as creating, updating, deleting, and retrieving {{ .Env.KIND }}s.
+// {{ .Env.KIND }}sClient is the interface for interacting with
+// Harbor {{ .Env.KIND }} API
+// It handles all the operations related to {{ .Env.KIND }}s in Harbor,
+// such as creating, updating, deleting, and retrieving {{ .Env.KIND }}s.
 type {{ .Env.KIND }}sClient interface {
 	// Define methods for interacting with Harbor {{ .Env.KIND }} API here
 }
 
-// New{{ .Env.KIND }}sClient creates a new {{ .Env.KIND }}sClient with the provided Harbor client configuration.
+// New{{ .Env.KIND }}sClient creates a {{ .Env.KIND }}sClient from the provided Harbor config.
 func New{{ .Env.KIND }}sClient(clientConfig common.Config) {{ .Env.KIND }}sClient {
-	newClient := common.NewClient(clientConfig)
-
-	return newClient.{{ .Env.KIND }}s
+	return common.NewClient(clientConfig)
 }
 
-// LateInitialize{{ .Env.KIND }} fills the empty fields in the {{ .Env.KIND }} spec with the values from the Harbor API response.
-// The API response should be the result of a "Get" operation for the {{ .Env.KIND }} resource.
+// LateInitialize{{ .Env.KIND }} fills empty {{ .Env.KIND }} spec fields from the API observation.
 func LateInitialize{{ .Env.KIND }}(spec *{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}Parameters, observation *{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}Observation) {
 	if spec == nil || observation == nil {
 		return
 	}
-	// Use the Harbor API response to fill in any missing fields in the {{ .Env.KIND }} spec.
-	// This typically involves checking if each field in the spec is nil or has a zero value, and if so, assigning it the corresponding value from the API response.
 }
 
-// Is{{ .Env.KIND }}LateInitialized checks if two {{ .Env.KIND }} specs are equal after late initialization. It returns true if the specs are equal, and false if they are not.
+// Is{{ .Env.KIND }}LateInitialized reports whether the spec changed during late init.
 func Is{{ .Env.KIND }}LateInitialized(former, current *{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}Parameters) bool {
 	if former == nil || current == nil {
 		return false
 	}
 
-	// Compare the two {{ .Env.KIND }} specs after late initialization. This typically involves using a comparison function that ignores fields that are not relevant for determining if the specs are up to date.
 	return !cmp.Equal(former, current, cmpopts.IgnoreFields({{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}Parameters{}))
 }
 
-// Is{{ .Env.KIND }}UpToDate checks if the {{ .Env.KIND }} spec is up to date with the Harbor API response.
-// It returns true if the spec is up to date, and false if it is not.
+// Is{{ .Env.KIND }}UpToDate reports whether the spec matches the observed Harbor state.
 func Is{{ .Env.KIND }}UpToDate(spec *{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}Parameters, observation *{{ .Env.APIVERSION | strings.ToLower }}.{{ .Env.KIND }}Observation) bool {
 	if spec == nil {
 		return true

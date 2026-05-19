@@ -20,16 +20,16 @@ package e2e
 
 import (
 	"os"
-	"strings"
 	"testing"
 
-	apiv2 "github.com/mittwald/goharbor-client/v5/apiv2"
+	v2client "github.com/goharbor/go-client/pkg/sdk/v2.0/client"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	"github.com/EvannDev/provider-harbor/apis"
+	"github.com/EvannDev/provider-harbor/internal/clients/common"
 )
 
 // Environment variable names recognised by the framework.
@@ -56,7 +56,7 @@ type Framework struct {
 	Kube client.Client
 	// Harbor talks to the Harbor REST API directly, used to verify the state
 	// the provider reconciled into Harbor.
-	Harbor apiv2.Client
+	Harbor *v2client.HarborAPI
 	// ProviderConfigName is the ClusterProviderConfig managed resources should reference.
 	ProviderConfigName string
 }
@@ -88,16 +88,10 @@ func New(t *testing.T) *Framework {
 		t.Fatalf("building kube client: %v", err)
 	}
 
-	// goharbor-client appends "/v2.0" to form the base path; Harbor's API
-	// lives at /api/v2.0, so ensure the URL ends with "/api".
-	apiURL := strings.TrimRight(rawURL, "/")
-	if !strings.HasSuffix(apiURL, "/api") && !strings.HasSuffix(apiURL, "/v2.0") {
-		apiURL += "/api"
-	}
-
-	hc, err := apiv2.NewRESTClientForHost(apiURL, username, password, nil)
-	if err != nil {
-		t.Fatalf("building harbor client: %v", err)
+	harborCfg := common.Config{
+		URL:      rawURL,
+		Username: username,
+		Password: password,
 	}
 
 	pc := os.Getenv(EnvProviderConfig)
@@ -107,7 +101,7 @@ func New(t *testing.T) *Framework {
 
 	return &Framework{
 		Kube:               kc,
-		Harbor:             hc,
+		Harbor:             common.NewHarborAPI(harborCfg),
 		ProviderConfigName: pc,
 	}
 }

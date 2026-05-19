@@ -29,14 +29,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/statemetrics"
-	apiv2 "github.com/mittwald/goharbor-client/v5/apiv2"
-	modelv2 "github.com/mittwald/goharbor-client/v5/apiv2/model"
+	"github.com/goharbor/go-client/pkg/sdk/v2.0/models"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	iamv1alpha1 "github.com/EvannDev/provider-harbor/apis/iam/v1alpha1"
 	apisv1alpha1 "github.com/EvannDev/provider-harbor/apis/v1alpha1"
-	harborclient "github.com/EvannDev/provider-harbor/internal/clients/harbor"
+	"github.com/EvannDev/provider-harbor/internal/clients/common"
 	iamclient "github.com/EvannDev/provider-harbor/internal/clients/iam"
 )
 
@@ -125,7 +124,7 @@ func Setup(mgr ctrl.Manager, opts controller.Options) error {
 type connector struct {
 	kube         client.Client
 	usage        *resource.ProviderConfigUsageTracker
-	newServiceFn func(apiv2.Client) iamclient.RobotAccountsClient
+	newServiceFn func(common.Config) iamclient.RobotAccountsClient
 }
 
 // Connect implements managed.TypedExternalConnecter.
@@ -135,12 +134,12 @@ func (c *connector) Connect(ctx context.Context, account *iamv1alpha1.RobotAccou
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
-	cl, err := harborclient.NewClient(ctx, c.kube, account.GetProviderConfigReference(), account.GetNamespace())
+	cfg, err := common.GetConfig(ctx, c.kube, account)
 	if err != nil {
 		return nil, errors.Wrap(err, errNewClient)
 	}
 
-	return &external{client: c.newServiceFn(cl)}, nil
+	return &external{client: c.newServiceFn(*cfg)}, nil
 }
 
 // external implements Observe/Create/Update/Delete against the Harbor API.
@@ -228,7 +227,7 @@ func (e *external) Update(ctx context.Context, account *iamv1alpha1.RobotAccount
 
 	iamclient.ApplyRobotAccountParameters(account.Spec.ForProvider, robot)
 
-	err = e.client.UpdateRobotAccount(ctx, robot)
+	err = e.client.UpdateRobotAccount(ctx, robot.ID, robot)
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, errUpdate)
 	}
@@ -271,7 +270,7 @@ func (e *external) Disconnect(_ context.Context) error { return nil }
 //  4. System-level robots: plain GetRobotAccountByName.
 //
 // Returns errNamespaceNotResolved when the project namespace is not available.
-func (e *external) findRobot(ctx context.Context, account *iamv1alpha1.RobotAccount) (*modelv2.Robot, error) {
+func (e *external) findRobot(ctx context.Context, account *iamv1alpha1.RobotAccount) (*models.Robot, error) {
 	if account.Status.AtProvider.ID != nil {
 		return e.client.GetRobotAccountByID(ctx, *account.Status.AtProvider.ID)
 	}

@@ -28,7 +28,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	iamv1alpha1 "github.com/EvannDev/provider-harbor/apis/iam/v1alpha1"
 	projectv1alpha1 "github.com/EvannDev/provider-harbor/apis/project/v1alpha1"
@@ -49,8 +48,8 @@ func TestSystemRobotAccountCRUD(t *testing.T) {
 	f := e2e.New(t)
 
 	const (
-		crName    = "e2e-system-robot-crud"
-		robotName = "e2e-system-robot-crud"
+		crName     = "e2e-system-robot-crud"
+		robotName  = "e2e-system-robot-crud"
 		secretName = "e2e-system-robot-crud-secret"
 	)
 
@@ -133,11 +132,11 @@ func TestProjectRobotAccountCRUD(t *testing.T) {
 	f := e2e.New(t)
 
 	const (
-		projectCRName   = "e2e-iam-project"
-		projectName     = "e2e-iam-project"
-		robotCRName     = "e2e-project-robot-crud"
-		robotName       = "e2e-project-robot-crud"
-		secretName      = "e2e-project-robot-crud-secret"
+		projectCRName = "e2e-iam-project"
+		projectName   = "e2e-iam-project"
+		robotCRName   = "e2e-project-robot-crud"
+		robotName     = "e2e-project-robot-crud"
+		secretName    = "e2e-project-robot-crud-secret"
 	)
 
 	// Create a project for the robot to be scoped to.
@@ -157,7 +156,7 @@ func TestProjectRobotAccountCRUD(t *testing.T) {
 				},
 			},
 			ForProvider: projectv1alpha1.ProjectParameters{
-				StorageLimit: ptr.To(int64(-1)),
+				StorageLimit: new(int64(-1)),
 			},
 		},
 	}
@@ -220,4 +219,3 @@ func TestProjectRobotAccountCRUD(t *testing.T) {
 		t.Errorf("robot description = %q, want %q", got.Description, "E2E-managed project robot")
 	}
 }
-
